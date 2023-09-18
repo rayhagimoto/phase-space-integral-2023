@@ -9,7 +9,7 @@ import logging, sys
 
 
 from integrand import Integrand
-from constants import get_input_params, DEFAULT_VALUES
+from constants import get_input_params
 
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
@@ -76,9 +76,9 @@ def main():
 
     # step 2 -- integ has adapted to f; keep results
     result = integ(f, nitn=20, neval=neval, alpha=False)
-    # print(result.summary())
+    print(result.summary())
     print("result = %s    Q = %.2f" % (result, result.Q))
-    print(f"result.RAvg = {result.mean:.2e}")
+    # print(f"result = {result.mean:.2e}")
 
     # Append result to file
     # with open("change-beta_F_mu.txt", "ba") as f:
