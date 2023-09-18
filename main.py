@@ -68,7 +68,7 @@ def main():
         ],
         nproc=16,
     )
-    neval = 2 * 10**6
+    neval = 10**6
 
     f = Integrand(ma, mb, m1, m2, mu_a, mu_b, mu_1, mu_2, T)
     # step 1 -- adapt to f; discard results
