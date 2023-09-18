@@ -1,0 +1,5 @@
+name: phase-space-integral-test
+depencencies:
+  - numpy
+  - pip
+    - vegas
