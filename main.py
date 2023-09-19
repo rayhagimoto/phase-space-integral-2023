@@ -18,7 +18,7 @@ def main():
     if len(sys.argv) > 1:
         beta_F_mu = float(sys.argv[1])
     else:
-        beta_F_mu = 0.836788  # MeV
+        beta_F_mu = 0.836788
     n = 14
 
     print(f"mu +/- {n} * T\n")
