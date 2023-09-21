@@ -1,7 +1,0 @@
-name: phase-space-integral-2023
-dependencies:
-  - python>=3.11
-  - numpy
-  - pip
-  - pip:
-    - vegas

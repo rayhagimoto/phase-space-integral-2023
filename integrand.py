@@ -2,10 +2,10 @@ import numpy as np
 from numpy import cos, sin
 from numpy.linalg import norm as np_norm
 from functools import partial
-from constants import CONVERSION_FACTOR
+from numba import njit
 
 
-import logging, sys
+import logging
 
 
 # ------------------------ OVERVIEW OF THE INTEGRAND ------------------------ #
@@ -35,7 +35,7 @@ The integrand has several factors:
 
 
 class Integrand:
-    def __init__(self, ma, mb, m1, m2, mu_a, mu_b, mu_1, mu_2, T):
+    def __init__(self, ma, mb, m1, m2, mu_a, mu_b, mu_1, mu_2, T, conversion_factor):
         self.integrand = partial(
             integrand,
             ma=ma,
@@ -48,9 +48,10 @@ class Integrand:
             mu_2=mu_2,
             T=T,
         )
+        self.conversion_factor = conversion_factor
 
     def __call__(self, x):
-        return CONVERSION_FACTOR * self.integrand(
+        return self.conversion_factor * self.integrand(
             Ea=x[0],
             Eb=x[1],
             E1=x[2],
@@ -247,7 +248,7 @@ def reconstruct_momenta(
         p2vec = pavec + pbvec - p1vec - p3vec
         E2 = np.sqrt(np_norm(p2vec) ** 2 + m2**2)
 
-        logging.debug(f"E3 = {E3}")
+        logging.debug(f"E3 / sqrt() = {E3}")
         logging.debug(f"Check energy conservation: {Ea + Eb - E1 - E2 - E3}")
 
         logging.debug(
