@@ -6,6 +6,7 @@ neutron star (NS).
 import vegas
 import numpy as np
 import logging, sys, os
+import time
 
 
 from integrand import Integrand
@@ -14,7 +15,7 @@ from constants import get_input_params, CONVERSION_FACTOR
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
 
-def main(T):
+def main(T, directory, filename):
     n = 14
 
     print(f"mu +/- {n} * T\n")
@@ -73,6 +74,9 @@ def main(T):
     f = Integrand(
         ma, mb, m1, m2, mu_a, mu_b, mu_1, mu_2, T, conversion_factor=CONVERSION_FACTOR
     )
+
+    t1 = time.perf_counter()
+
     # step 1 -- adapt to f; discard results
     integ(f, nitn=10, neval=neval, alpha=0.1)
 
@@ -81,28 +85,31 @@ def main(T):
     print(result.summary())
     print(f"result = {result}    Q = {result.Q:.2f}")
 
-    FILE_DIRECTORY = "./results/ep-to-upa"
-    FILE_NAME = "T-vs-emissivity.csv"
+    t2 = time.perf_counter()
+    print(f"Time elapsed: {t2 - t1:.2f}")
 
-    WRITE_HEADER = FILE_NAME not in os.listdir(FILE_DIRECTORY)
+    write_header = filename not in os.listdir(directory)
     # Append result to file
-    with open(FILE_DIRECTORY + "/" + FILE_NAME, "ba") as f:
-        if WRITE_HEADER:
-            np.savetxt(
-                f,
-                np.array([[T, result.mean]]),
-                delimiter=",",
-                header=params_str,
-            )
-        else:
-            np.savetxt(
-                f,
-                np.array([[T, result.mean]]),
-                delimiter=",",
-            )
+    # with open(directory + "/" + filename, "ba") as f:
+    #     if write_header:
+    #         np.savetxt(
+    #             f,
+    #             np.array([[T, result.mean]]),
+    #             delimiter=",",
+    #             header=params_str,
+    #         )
+    #     else:
+    #         np.savetxt(
+    #             f,
+    #             np.array([[T, result.mean]]),
+    #             delimiter=",",
+    #         )
 
 
 if __name__ == "__main__":
+    FILE_DIRECTORY = "./results/ep-to-upa"
+    FILE_NAME = "T-vs-emissivity.csv"
     T0 = 0.0861733  # MeV
-    for T in np.logspace(-2, 0, 20) * T0:
-        main(T)
+
+    # for T in np.logspace(-2, 0, 20) * T0:
+    main(T0, FILE_DIRECTORY, FILE_NAME)
