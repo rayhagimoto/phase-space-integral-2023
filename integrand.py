@@ -2,7 +2,7 @@ import numpy as np
 from numpy import cos, sin
 from numpy.linalg import norm as np_norm
 from functools import partial
-from numba import njit
+from numba import jit
 
 
 import logging
@@ -64,6 +64,7 @@ class Integrand:
         )
 
 
+@jit(nopython=True)
 def fFD(E, mu, T):
     """Fermi-Dirac Distribution
 
@@ -82,6 +83,7 @@ def fFD(E, mu, T):
     return 0
 
 
+@jit(nopython=True)
 def integrand(
     Ea,
     Eb,
@@ -200,6 +202,7 @@ def integrand(
     return np.float64(0.0)
 
 
+@jit(nopython=True)
 def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     """Thermal factors
 
@@ -232,6 +235,15 @@ def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     )
 
 
+@jit(nopython=True)
+def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
+    """Lorentz dot product
+    Using (-, +, +, +) convention to be consistent with HY Zhang.
+    """
+    return np.dot(p_ivec, p_jvec) - E_i * E_j
+
+
+@jit(nopython=True)
 def matrix_element_sq(
     Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
 ):
@@ -242,19 +254,12 @@ def matrix_element_sq(
 
     """
 
-    def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
-        """Lorentz dot product
-        Using (-, +, +, +) convention to be consistent with HY Zhang.
-        """
-        return np.dot(p_ivec, p_jvec) - E_i * E_j
-
     gaemu_sq = (10**-11) ** 2
     e = np.sqrt(4 * np.pi / 137)
     norm = 128 * gaemu_sq * e**4 / (ma**2 - m1**2) ** 2
 
     pa_dot_p1 = lorentz_dot(Ea, pavec, E1, p1vec)
     pb_dot_p3 = lorentz_dot(Eb, pbvec, E3, p3vec)
-    # pb_dot_p2 = lorentz_dot(Eb, pbvec, E2, p2vec)
     p2_dot_p3 = lorentz_dot(E2, p2vec, E3, p3vec)
 
     Eb2 = Eb - E2
