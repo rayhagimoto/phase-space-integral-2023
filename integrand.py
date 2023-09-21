@@ -64,7 +64,7 @@ class Integrand:
         )
 
 
-@jit(nopython=True)
+@jit(nopython=True, error_model="numpy")
 def fFD(E, mu, T):
     """Fermi-Dirac Distribution
 
@@ -83,7 +83,7 @@ def fFD(E, mu, T):
     return 0
 
 
-@jit(nopython=True)
+@jit(nopython=True, error_model="numpy")
 def integrand(
     Ea,
     Eb,
@@ -202,7 +202,7 @@ def integrand(
     return np.float64(0.0)
 
 
-@jit(nopython=True)
+@jit(nopython=True, error_model="numpy")
 def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     """Thermal factors
 

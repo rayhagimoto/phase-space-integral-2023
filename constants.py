@@ -39,7 +39,7 @@ def get_input_params(
         mu_b = np.sqrt(pFb**2 + mb**2)
         mu_1 = np.sqrt(pF1**2 + m1**2)
         mu_2 = mu_b
-    elif beta_F_mu:
+    elif beta_F_mu is not None:
         pF1 = m1 * beta_F_mu / np.sqrt(1 - beta_F_mu**2)
         mu_1 = np.sqrt(pF1**2 + m1**2)
         mu_a = mu_1

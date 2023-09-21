@@ -5,8 +5,9 @@ neutron star (NS).
 
 import vegas
 import numpy as np
-import logging, sys, os
+import logging, sys
 import time
+from pathlib import Path
 
 
 from integrand import Integrand
@@ -15,17 +16,41 @@ from constants import get_input_params, CONVERSION_FACTOR
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
 
-def main(T, directory, filename):
+def save_file(
+    filepath,
+    header,
+    data,
+):
+    WRITE_HEADER = not Path(filepath).is_file()
+
+    # Append result to file
+    with open(filepath, "ba") as f:
+        if WRITE_HEADER:
+            np.savetxt(
+                f,
+                data,
+                delimiter=",",
+                header=header,
+            )
+        else:
+            np.savetxt(
+                f,
+                data,
+                delimiter=",",
+            )
+
+
+def main(beta_F_mu, directory, filename):
     n = 14
 
     print(f"mu +/- {n} * T\n")
 
     T, ma, mb, m1, m2, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_input_params(
-        T=T,  # MeV
+        T=0.0861733,  # MeV
         ma=0.511,  # MeV (electron)
         mb=0.8 * 938.27208816,  # MeV (proton)
         m1=106.0,  # MeV (muon)
-        beta_F_mu=0.836788
+        beta_F_mu=beta_F_mu,
         # pFa=100,  # MeV (electron)
         # pFb=226.0,  # MeV (proton)
         # pF1=162.0,  # MeV (muon)
@@ -47,7 +72,7 @@ def main(T, directory, filename):
         nproc=16,
     )
 
-    neval = 10**7
+    neval = 10**6
 
     params_str = (
         f"T = {T}\n"
@@ -66,8 +91,10 @@ def main(T, directory, filename):
         f"neval = {neval}"
     )
 
+    print(f"beta_F_mu = {beta_F_mu}")
     print(f"Parameters\n----------\n{params_str}")
 
+    # ------------------- COMPUTE THE INTEGRAL ------------------- #
     t1 = time.perf_counter()
 
     # For constant matrix element, set conversion factor to 1 for convenience.
@@ -78,35 +105,26 @@ def main(T, directory, filename):
     # step 1 -- adapt to f; discard results
     integ(f, nitn=10, neval=neval, alpha=0.1)
 
-    t2 = time.perf_counter()
-    print(f"Time elapsed: {t2 - t1:.2f}")
-
     # step 2 -- integ has adapted to f; keep results
     result = integ(f, nitn=20, neval=neval, alpha=False)
     print(result.summary())
     print(f"result = {result}    Q = {result.Q:.2f}")
 
-    WRITE_HEADER = filename not in os.listdir(directory)
-    # Append result to file
-    with open(directory + "/" + filename, "ba") as f:
-        if WRITE_HEADER:
-            np.savetxt(
-                f,
-                np.array([[T, result.mean]]),
-                delimiter=",",
-                header=params_str,
-            )
-        else:
-            np.savetxt(
-                f,
-                np.array([[T, result.mean]]),
-                delimiter=",",
-            )
+    t2 = time.perf_counter()
+    print(f"Time elapsed: {t2 - t1:.2f}")
+    # --------------------- end of main part --------------------- #
+
+    filename = filename + f"neval={neval}.csv"
+    filepath = directory + "/" + filename
+    HEADER = params_str + "\n" + f"Columns:beta_F_mu,emissivity (ergs/cm^3/s),error"
+    data = np.array([[beta_F_mu, result.mean, result.sdev]])
+
+    save_file(filepath, header=HEADER, data=data)
 
 
 if __name__ == "__main__":
     T0 = 0.0861733  # MeV
     FILE_DIRECTORY = "./results/ep-to-upa"
-    FILE_NAME = "T-vs-emissivity.csv"
-    for T in np.logspace(-2, -2, 20) * T0:
-        main(T, FILE_DIRECTORY, FILE_NAME)
+    FILE_NAME = "beta_F_mu-vs-emissivity"
+    for beta_F_mu in np.linspace(0.05, 0.95, 5):
+        main(beta_F_mu, FILE_DIRECTORY, FILE_NAME)
