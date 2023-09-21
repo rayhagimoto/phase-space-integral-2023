@@ -83,25 +83,25 @@ def fFD(E, mu, T):
 
 
 def integrand(
-    Ea: float,
-    Eb: float,
-    E1: float,
-    cosa: float,
-    cosb: float,
-    cos1: float,
-    phia: float,
-    phib: float,
-    phi1: float,
-    ma: float,
-    mb: float,
-    m1: float,
-    m2: float,
-    mu_a: float,
-    mu_b: float,
-    mu_1: float,
-    mu_2: float,
-    T: float,
-) -> float:
+    Ea,
+    Eb,
+    E1,
+    cosa,
+    cosb,
+    cos1,
+    phia,
+    phib,
+    phi1,
+    ma,
+    mb,
+    m1,
+    m2,
+    mu_a,
+    mu_b,
+    mu_1,
+    mu_2,
+    T,
+):
     """Integrand, including measure factors.
 
     Below 'NS frame' means neutron star rest frame.
@@ -146,36 +146,41 @@ def integrand(
     norm = (4 * np.pi) / 2**5 / (2 * np.pi) ** 11
 
     # ------ MOMENTUM RECONSTRUCTION ------ #
-    (E3_is_pos, reconstruction) = reconstruct_momenta(
-        Ea,
-        Eb,
-        E1,
-        cosa,
-        cosb,
-        cos1,
-        phia,
-        phib,
-        phi1,
-        ma,
-        mb,
-        m1,
-        m2,
-    )
 
-    if E3_is_pos:
-        (
-            pavec,
-            pbvec,
-            p1vec,
-            p2vec,
-            p3vec,
-            E2,
-            E3,
-            pamag,
-            pbmag,
-            p1mag,
-            jac_factor,
-        ) = reconstruction
+    # First calculate E3.
+    # If it's positive, then this point in phase space is
+    # kinematically allowed, so continue.
+    sina = (1 - cosa**2) ** 0.5
+    sinb = (1 - cosb**2) ** 0.5
+    sin1 = (1 - cos1**2) ** 0.5
+
+    pamag = (Ea**2 - ma**2) ** 0.5
+    pbmag = (Eb**2 - mb**2) ** 0.5
+    p1mag = (E1**2 - m1**2) ** 0.5
+
+    pavec = pamag * np.array([sina * cos(phia), sina * sin(phia), cosa])
+    pbvec = pbmag * np.array([sinb * cos(phib), sinb * sin(phib), cosb])
+    p1vec = p1mag * np.array([sin1 * cos(phi1), sin1 * sin(phi1), cos1])
+
+    Pvec = pavec + pbvec - p1vec
+    Pmag = np_norm(Pvec)
+    Epsilon = (Pmag**2 + m2**2) ** 0.5
+    Pz = Pvec[2]
+
+    # E3 = p3mag since axion is massless
+    E3 = ((Ea + Eb - E1) - Epsilon) / (1 - Pz / Epsilon)
+
+    if E3 > 0:
+        # jac_factor arises from using energy Dirac delta to fix
+        # E3 to the value specified above.
+        jac_factor = 1 / np.abs(
+            1 + (E3 - Pz) / np.sqrt(Pmag**2 + m2**2 + E3**2 - 2 * E3 * Pz)
+        )
+
+        # Coord. system is chosen so that p3 points in z-direction.
+        p3vec = E3 * np.array([0, 0, 1])
+        p2vec = pavec + pbvec - p1vec - p3vec
+        E2 = (np_norm(p2vec) ** 2 + m2**2) ** 0.5
 
         # ----- THE INTEGRAND ----- #
         _integrand = (
@@ -192,91 +197,7 @@ def integrand(
             )
         )
         return _integrand
-    return 0
-
-
-def reconstruct_momenta(
-    Ea,
-    Eb,
-    E1,
-    cosa,
-    cosb,
-    cos1,
-    phia,
-    phib,
-    phi1,
-    ma,
-    mb,
-    m1,
-    m2,
-):
-    """Reconstruct momenta from integration variables."""
-    sina = np.sqrt(1 - cosa**2)
-    sinb = np.sqrt(1 - cosb**2)
-    sin1 = np.sqrt(1 - cos1**2)
-
-    pamag = np.sqrt(Ea**2 - ma**2)
-    pbmag = np.sqrt(Eb**2 - mb**2)
-    p1mag = np.sqrt(E1**2 - m1**2)
-
-    pavec = pamag * np.array([sina * cos(phia), sina * sin(phia), cosa])
-    pbvec = pbmag * np.array([sinb * cos(phib), sinb * sin(phib), cosb])
-    p1vec = p1mag * np.array([sin1 * cos(phi1), sin1 * sin(phi1), cos1])
-
-    Pvec = pavec + pbvec - p1vec
-    Pmag = np_norm(Pvec)
-    Epsilon = np.sqrt(Pmag**2 + m2**2)
-    Pz = Pvec[2]
-
-    # E3 = p3mag since axion is massless
-    E3 = ((Ea + Eb - E1) - Epsilon) / (1 - Pz / Epsilon)
-    logging.debug(f"Check that small p3mag approximation is valid: {E3 / Epsilon}")
-
-    # Check if E3 > 0
-    # if not, then invalid kinematic parameters have been chosen
-    # and we should return 0.
-    E3_is_pos = E3 > 0
-    if E3_is_pos:
-        # jac_factor arises from using energy Dirac delta to fix
-        # E3 to the value specified above.
-        jac_factor = 1 / np.abs(
-            1 + (E3 - Pz) / np.sqrt(Pmag**2 + m2**2 + E3**2 - 2 * E3 * Pz)
-        )
-
-        # Coord. system is chosen so that p3 points in z-direction.
-        p3vec = E3 * np.array([0, 0, 1])
-        p2vec = pavec + pbvec - p1vec - p3vec
-        E2 = np.sqrt(np_norm(p2vec) ** 2 + m2**2)
-
-        logging.debug(f"E3 / sqrt() = {E3}")
-        logging.debug(f"Check energy conservation: {Ea + Eb - E1 - E2 - E3}")
-
-        logging.debug(
-            f"Check momentum conservation: {pavec + pbvec - p1vec - p2vec - p3vec}"
-        )
-        logging.debug(f"Check 'a' on-shell: {(Ea**2 - np_norm(pavec)**2)}")
-        logging.debug(f"Check 'b' on-shell: {(Eb**2 - np_norm(pbvec)**2) / mb**2}")
-        logging.debug(f"Check '1' on-shell: {(E1**2 - np_norm(p1vec)**2) / m1**2}")
-        logging.debug(f"Check '2' on-shell: {(E2**2 - np_norm(p2vec)**2) / m2**2}")
-        logging.debug(f"Check '3' on-shell: {(E3**2 - np_norm(p3vec)**2)}")
-
-        return (
-            E3_is_pos,
-            [
-                pavec,
-                pbvec,
-                p1vec,
-                p2vec,
-                p3vec,
-                E2,
-                E3,
-                pamag,
-                pbmag,
-                p1mag,
-                jac_factor,
-            ],
-        )
-    return E3_is_pos, None
+    return np.float64(0.0)
 
 
 def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):

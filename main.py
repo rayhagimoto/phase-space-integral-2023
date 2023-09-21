@@ -6,6 +6,7 @@ neutron star (NS).
 import vegas
 import numpy as np
 import logging, sys, os
+import time
 
 
 from integrand import Integrand
@@ -68,6 +69,8 @@ def main(T):
 
     print(f"Parameters\n----------\n{params_str}")
 
+    t1 = time.perf_counter()
+
     # For constant matrix element, set conversion factor to 1 for convenience.
     # For full matrix element set conversion factor to  CONVERSION_FACTOR.
     f = Integrand(
@@ -75,6 +78,9 @@ def main(T):
     )
     # step 1 -- adapt to f; discard results
     integ(f, nitn=10, neval=neval, alpha=0.1)
+
+    t2 = time.perf_counter()
+    print(f"Time elapsed: {t2 - t1:.2f}")
 
     # step 2 -- integ has adapted to f; keep results
     result = integ(f, nitn=20, neval=neval, alpha=False)
@@ -86,20 +92,20 @@ def main(T):
 
     WRITE_HEADER = FILE_NAME not in os.listdir(FILE_DIRECTORY)
     # Append result to file
-    with open(FILE_DIRECTORY + "/" + FILE_NAME, "ba") as f:
-        if WRITE_HEADER:
-            np.savetxt(
-                f,
-                np.array([[T, result.mean]]),
-                delimiter=",",
-                header=params_str,
-            )
-        else:
-            np.savetxt(
-                f,
-                np.array([[T, result.mean]]),
-                delimiter=",",
-            )
+    # with open(FILE_DIRECTORY + "/" + FILE_NAME, "ba") as f:
+    #     if WRITE_HEADER:
+    #         np.savetxt(
+    #             f,
+    #             np.array([[T, result.mean]]),
+    #             delimiter=",",
+    #             header=params_str,
+    #         )
+    #     else:
+    #         np.savetxt(
+    #             f,
+    #             np.array([[T, result.mean]]),
+    #             delimiter=",",
+    #         )
 
 
 if __name__ == "__main__":
