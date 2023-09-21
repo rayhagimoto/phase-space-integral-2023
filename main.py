@@ -15,7 +15,7 @@ from constants import get_input_params, CONVERSION_FACTOR
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
 
-def main(T):
+def main(T, directory, filename):
     n = 14
 
     print(f"mu +/- {n} * T\n")
@@ -47,7 +47,7 @@ def main(T):
         nproc=16,
     )
 
-    neval = 10**6
+    neval = 10**7
 
     params_str = (
         f"T = {T}\n"
@@ -63,7 +63,6 @@ def main(T):
         f"mu_b = {mu_b}\n"
         f"mu_1 = {mu_1}\n"
         f"mu_2 = {mu_2}\n"
-        f"T = {T}\n"
         f"neval = {neval}"
     )
 
@@ -87,28 +86,27 @@ def main(T):
     print(result.summary())
     print(f"result = {result}    Q = {result.Q:.2f}")
 
-    FILE_DIRECTORY = "./results/ep-to-upa"
-    FILE_NAME = "T-vs-emissivity.csv"
-
-    WRITE_HEADER = FILE_NAME not in os.listdir(FILE_DIRECTORY)
+    WRITE_HEADER = filename not in os.listdir(directory)
     # Append result to file
-    # with open(FILE_DIRECTORY + "/" + FILE_NAME, "ba") as f:
-    #     if WRITE_HEADER:
-    #         np.savetxt(
-    #             f,
-    #             np.array([[T, result.mean]]),
-    #             delimiter=",",
-    #             header=params_str,
-    #         )
-    #     else:
-    #         np.savetxt(
-    #             f,
-    #             np.array([[T, result.mean]]),
-    #             delimiter=",",
-    #         )
+    with open(directory + "/" + filename, "ba") as f:
+        if WRITE_HEADER:
+            np.savetxt(
+                f,
+                np.array([[T, result.mean]]),
+                delimiter=",",
+                header=params_str,
+            )
+        else:
+            np.savetxt(
+                f,
+                np.array([[T, result.mean]]),
+                delimiter=",",
+            )
 
 
 if __name__ == "__main__":
     T0 = 0.0861733  # MeV
-    for T in np.logspace(-2, 0, 20) * T0:
-        main(T)
+    FILE_DIRECTORY = "./results/ep-to-upa"
+    FILE_NAME = "T-vs-emissivity.csv"
+    for T in np.logspace(-2, -2, 20) * T0:
+        main(T, FILE_DIRECTORY, FILE_NAME)
