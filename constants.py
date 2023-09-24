@@ -10,9 +10,10 @@ DEFAULT_VALUES = dict(
     ma=0.511,  # MeV (electron)
     mb=0.8 * 938.27208816,  # MeV (proton)
     m1=106.0,  # MeV (muon)
-    pFa=193.0,  # MeV (electron)
-    pFb=226.0,  # MeV (proton)
-    pF1=162.0,  # MeV (muon)
+    # pFa=193.0,  # MeV (electron)
+    # pFb=226.0,  # MeV (proton)
+    # pF1=162.0,  # MeV (muon)
+    beta_F_mu=0.836788,
 )
 
 
