@@ -64,7 +64,7 @@ class Integrand:
         )
 
 
-@jit(, error_model="numpy")
+@jit(nopython=True, error_model="numpy")
 def fFD(E, mu, T):
     """Fermi-Dirac Distribution
 
@@ -83,7 +83,7 @@ def fFD(E, mu, T):
     return 0
 
 
-@jit(error_model="numpy")
+@jit(nopython=True, error_model="numpy")
 def integrand(
     Ea,
     Eb,
@@ -206,7 +206,7 @@ def integrand(
     return np.float64(0.0)
 
 
-@jit(error_model="numpy")
+@jit(nopython=True, error_model="numpy")
 def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     """Thermal factors
 
@@ -239,7 +239,7 @@ def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     )
 
 
-@jit(error_model="numpy")
+@jit(nopython=True, error_model="numpy")
 def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
     """Lorentz dot product
     Using (-, +, +, +) convention to be consistent with HY Zhang.
@@ -247,7 +247,7 @@ def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
     return np.dot(p_ivec, p_jvec) - E_i * E_j
 
 
-@jit(error_model="numpy")
+@jit(nopython=True, error_model="numpy")
 def matrix_element_sq(
     Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
 ):
@@ -274,7 +274,7 @@ def matrix_element_sq(
     return norm * result
 
 
-@jit(error_model="numpy")
+@jit(nopython=True, error_model="numpy")
 def fsa_matrix_element_sq(EFa, EFb, EF1, ma, mb, m1, pavec, pbvec, p1vec, p2vec, p3vec):
     """Spin-summed matrix element squared using Fermi-surface approximation.
 
@@ -284,20 +284,20 @@ def fsa_matrix_element_sq(EFa, EFb, EF1, ma, mb, m1, pavec, pbvec, p1vec, p2vec,
     gaemu_sq = (10**-11) ** 2
     norm = 32 * e_em**4 * gaemu_sq
 
-    E3 = np.linalg.norm(p3vec)
-    pmaga = np.linalg.norm(pavec)
-    pmagb = np.linalg.norm(pbvec)
-    pmag1 = np.linalg.norm(p1vec)
-    pmag2 = np.linalg.norm(p2vec)
+    E3 = np_norm(p3vec)
+    pmaga = np_norm(pavec)
+    pmagb = np_norm(pbvec)
+    pmag1 = np_norm(p1vec)
+    pmag2 = np_norm(p2vec)
 
-    beta_F_a = EFa / ma
-    beta_F_b = EFb / mb
-    beta_F_1 = EF1 / m1
+    beta_F_a = (1 - (ma / EFa) ** 2) ** 0.5
+    beta_F_b = (1 - (mb / EFb) ** 2) ** 0.5
+    beta_F_1 = (1 - (m1 / EF1) ** 2) ** 0.5
 
     ca1 = np.dot(pavec, p1vec) / pmaga / pmag1
     cb2 = np.dot(pbvec, p2vec) / pmagb / pmag2
-    cb3 = np.dot(pbvec, p3vec) / pmagb / E3
-    c23 = np.dot(p2vec, p3vec) / pmag2 / E3
+    cb3 = pbvec[-1] / pmagb
+    c23 = p2vec[-1] / pmag2
 
     G = (
         (1 - beta_F_b * cb3)
