@@ -64,7 +64,7 @@ class Integrand:
         )
 
 
-@jit(nopython=True, error_model="numpy")
+@jit(, error_model="numpy")
 def fFD(E, mu, T):
     """Fermi-Dirac Distribution
 
@@ -83,7 +83,7 @@ def fFD(E, mu, T):
     return 0
 
 
-@jit(nopython=True, error_model="numpy")
+@jit(error_model="numpy")
 def integrand(
     Ea,
     Eb,
@@ -194,15 +194,19 @@ def integrand(
             * jac_factor
             * E3
             * thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T)
-            * matrix_element_sq(
-                Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+            # Fermi surface approximation fixes Ea -> mu_a, Eb -> mu_b, etc...
+            # * matrix_element_sq(
+            #     Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+            # )
+            * fsa_matrix_element_sq(
+                mu_a, mu_b, mu_1, ma, mb, m1, pavec, pbvec, p1vec, p2vec, p3vec
             )
         )
         return _integrand
     return np.float64(0.0)
 
 
-@jit(nopython=True, error_model="numpy")
+@jit(error_model="numpy")
 def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     """Thermal factors
 
@@ -235,7 +239,7 @@ def thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T):
     )
 
 
-@jit(nopython=True)
+@jit(error_model="numpy")
 def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
     """Lorentz dot product
     Using (-, +, +, +) convention to be consistent with HY Zhang.
@@ -243,7 +247,7 @@ def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
     return np.dot(p_ivec, p_jvec) - E_i * E_j
 
 
-@jit(nopython=True)
+@jit(error_model="numpy")
 def matrix_element_sq(
     Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
 ):
@@ -255,7 +259,7 @@ def matrix_element_sq(
     """
 
     gaemu_sq = (10**-11) ** 2
-    e = np.sqrt(4 * np.pi / 137)
+    e = (4 * np.pi / 137) ** 0.5
     norm = 128 * gaemu_sq * e**4 / (ma**2 - m1**2) ** 2
 
     pa_dot_p1 = lorentz_dot(Ea, pavec, E1, p1vec)
@@ -268,3 +272,48 @@ def matrix_element_sq(
 
     result = ((-pa_dot_p1 - ma * m1) * pb_dot_p3 * p2_dot_p3) / ((pb2_sq) ** 2)
     return norm * result
+
+
+@jit(error_model="numpy")
+def fsa_matrix_element_sq(EFa, EFb, EF1, ma, mb, m1, pavec, pbvec, p1vec, p2vec, p3vec):
+    """Spin-summed matrix element squared using Fermi-surface approximation.
+
+    From eq. (2.29) of Hong Yi's notes.
+    """
+    e_em = (4 * np.pi / 137) ** 0.5
+    gaemu_sq = (10**-11) ** 2
+    norm = 32 * e_em**4 * gaemu_sq
+
+    E3 = np.linalg.norm(p3vec)
+    pmaga = np.linalg.norm(pavec)
+    pmagb = np.linalg.norm(pbvec)
+    pmag1 = np.linalg.norm(p1vec)
+    pmag2 = np.linalg.norm(p2vec)
+
+    beta_F_a = EFa / ma
+    beta_F_b = EFb / mb
+    beta_F_1 = EF1 / m1
+
+    ca1 = np.dot(pavec, p1vec) / pmaga / pmag1
+    cb2 = np.dot(pbvec, p2vec) / pmagb / pmag2
+    cb3 = np.dot(pbvec, p3vec) / pmagb / E3
+    c23 = np.dot(p2vec, p3vec) / pmag2 / E3
+
+    G = (
+        (1 - beta_F_b * cb3)
+        * (1 - beta_F_b * c23)
+        * (1 - beta_F_a * beta_F_1 * ca1)
+        / (1 - cb2) ** 2
+    )
+
+    _matrix_element_sq = (
+        norm
+        * E3**2
+        / EFa**2
+        / EFb**2
+        / beta_F_b**4
+        / (beta_F_a**2 - beta_F_1**2) ** 2
+        * G
+    )
+
+    return _matrix_element_sq
