@@ -184,20 +184,35 @@ def integrand(
         p2vec = pavec + pbvec - p1vec - p3vec
         E2 = (np_norm(p2vec) ** 2 + m2**2) ** 0.5
 
-        # ----- THE INTEGRAND ----- #
+        # # ----- THE INTEGRAND ----- #
+        # _integrand = (
+        #     norm
+        #     * pamag
+        #     * pbmag
+        #     * p1mag
+        #     * E3
+        #     * jac_factor
+        #     * E3
+        #     * thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T)
+        #     * matrix_element_sq(
+        #         Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+        #     )
+        # )
+
+        # ----- FSA INTEGRAND ----- #
+        # Fermi surface approximation fixes Ea -> mu_a, Eb -> mu_b, etc...
+        pFa = (mu_a**2 - ma**2) ** 0.5
+        pFb = (mu_b**2 - mb**2) ** 0.5
+        pF1 = (mu_1**2 - m1**2) ** 0.5
         _integrand = (
             norm
-            * pamag
-            * pbmag
-            * p1mag
+            * pFa
+            * pFb
+            * pF1
             * E3
             * jac_factor
             * E3
             * thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T)
-            # Fermi surface approximation fixes Ea -> mu_a, Eb -> mu_b, etc...
-            # * matrix_element_sq(
-            #     Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
-            # )
             * fsa_matrix_element_sq(
                 mu_a, mu_b, mu_1, ma, mb, m1, pavec, pbvec, p1vec, p2vec, p3vec
             )

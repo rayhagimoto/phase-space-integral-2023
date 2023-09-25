@@ -41,10 +41,10 @@ def save_file(
 
 
 def main(beta_F_mu, directory, filename):
-    n = 14
-
+    n = 10
     print(f"mu +/- {n} * T\n")
-
+    # beta_F_mu = 0.836788
+    # T = 0.0861733 # MeV
     T, ma, mb, m1, m2, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_input_params(
         T=0.0861733,  # MeV
         ma=0.511,  # MeV (electron)
@@ -72,7 +72,7 @@ def main(beta_F_mu, directory, filename):
         nproc=16,
     )
 
-    neval = 10**6
+    neval = 10**7
 
     params_str = (
         f"T = {T}\n"
@@ -114,17 +114,20 @@ def main(beta_F_mu, directory, filename):
     print(f"Time elapsed: {t2 - t1:.2f}")
     # --------------------- end of main part --------------------- #
 
-    filename = filename + f"neval={neval}.csv"
-    filepath = directory + "/" + filename
-    HEADER = params_str + "\n" + f"Columns:beta_F_mu,emissivity (ergs/cm^3/s),error"
-    data = np.array([[beta_F_mu, result.mean, result.sdev]])
+    # # -------------------------- DATA IO -------------------------- #
+    # filename = filename + f"-neval={neval}-9-22-2023.csv"
+    # filepath = directory + "/" + filename
+    # HEADER = params_str + "\n" + f"Columns:n,emissivity (ergs/cm^3/s),error"
+    # data = np.array([[beta_F_mu, result.mean, result.sdev]])
 
-    save_file(filepath, header=HEADER, data=data)
+    # save_file(filepath, header=HEADER, data=data)
 
 
 if __name__ == "__main__":
     T0 = 0.0861733  # MeV
-    FILE_DIRECTORY = "./results/ep-to-upa"
+    FILE_DIRECTORY = "./results/ep-to-upa-FSA"
+    Path(FILE_DIRECTORY).mkdir(exist_ok=True)
     FILE_NAME = "beta_F_mu-vs-emissivity"
-    for beta_F_mu in np.linspace(0.05, 0.95, 5):
-        main(beta_F_mu, FILE_DIRECTORY, FILE_NAME)
+    beta_F_mu = 0.836788
+    # for beta_F_mu in np.linspace(0.01, 0.05, 10):
+    main(beta_F_mu, FILE_DIRECTORY, FILE_NAME)
