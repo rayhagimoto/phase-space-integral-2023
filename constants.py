@@ -10,9 +10,7 @@ DEFAULT_VALUES = dict(
     ma=0.511,  # MeV (electron)
     mb=0.8 * 938.27208816,  # MeV (proton)
     m1=106.0,  # MeV (muon)
-    # pFa=193.0,  # MeV (electron)
-    # pFb=226.0,  # MeV (proton)
-    # pF1=162.0,  # MeV (muon)
+    m3=0,
     beta_F_mu=0.836788,
 )
 
@@ -22,6 +20,7 @@ def get_input_params(
     ma,
     mb,
     m1,
+    m3,
     pFa=None,
     pFb=None,
     pF1=None,
@@ -52,4 +51,4 @@ def get_input_params(
         raise Exception(
             "Either pFa, pFb, and pF1 must be supplied or beta_F_mu must be supplied. One of these conditions has not been met."
         )
-    return T, ma, mb, m1, m2, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2
+    return T, ma, mb, m1, m2, m3, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2
