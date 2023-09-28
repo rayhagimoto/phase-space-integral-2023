@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 from integrand import Integrand
-from constants import get_input_params, CONVERSION_FACTOR
+from constants import get_fermi_params, get_masses, CONVERSION_FACTOR, DEFAULT_VALUES
 
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
 
@@ -40,20 +40,15 @@ def save_file(
             )
 
 
-def main(beta_F_mu, directory, filename):
+def calc_emissivity(
+    process, beta_F_mu, T, m3, directory=None, filename=None, save=False
+):
     n = 10
-    print(f"mu +/- {n} * T\n")
-    # beta_F_mu = 0.836788
-    # T = 0.0861733 # MeV
-    T, ma, mb, m1, m2, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_input_params(
-        T=0.0861733,  # MeV
-        ma=0.511,  # MeV (electron)
-        mb=0.8 * 938.27208816,  # MeV (proton)
-        m1=106.0,  # MeV (muon)
-        beta_F_mu=beta_F_mu,
-        # pFa=100,  # MeV (electron)
-        # pFb=226.0,  # MeV (proton)
-        # pF1=162.0,  # MeV (muon)
+
+    ma, mb, m1, m2 = get_masses(process)
+    pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(
+        process,
+        beta_F_mu,
     )
 
     # initialise Monte Carlo integrator object
@@ -75,11 +70,12 @@ def main(beta_F_mu, directory, filename):
     neval = 10**7
 
     params_str = (
-        f"T = {T}\n"
+        # f"T = {T}\n"
         f"ma = {ma}\n"
         f"mb = {mb}\n"
         f"m1 = {m1}\n"
         f"m2 = {m2}\n"
+        f"m2 = {m3}\n"
         f"pFa = {pFa}\n"
         f"pFb = {pFb}\n"
         f"pF1 = {pF1}\n"
@@ -91,7 +87,8 @@ def main(beta_F_mu, directory, filename):
         f"neval = {neval}"
     )
 
-    print(f"beta_F_mu = {beta_F_mu}")
+    print(f"mu +/- {n} * T\n")
+    print(f"T = {T}")
     print(f"Parameters\n----------\n{params_str}")
 
     # ------------------- COMPUTE THE INTEGRAL ------------------- #
@@ -100,10 +97,20 @@ def main(beta_F_mu, directory, filename):
     # For constant matrix element, set conversion factor to 1 for convenience.
     # For full matrix element set conversion factor to  CONVERSION_FACTOR.
     f = Integrand(
-        ma, mb, m1, m2, mu_a, mu_b, mu_1, mu_2, T, conversion_factor=CONVERSION_FACTOR
+        ma,
+        mb,
+        m1,
+        m2,
+        m3,
+        mu_a,
+        mu_b,
+        mu_1,
+        mu_2,
+        T,
+        conversion_factor=CONVERSION_FACTOR,
     )
     # step 1 -- adapt to f; discard results
-    integ(f, nitn=10, neval=neval, alpha=0.1)
+    integ(f, nitn=20, neval=neval, alpha=0.3)
 
     # step 2 -- integ has adapted to f; keep results
     result = integ(f, nitn=20, neval=neval, alpha=False)
@@ -114,20 +121,38 @@ def main(beta_F_mu, directory, filename):
     print(f"Time elapsed: {t2 - t1:.2f}")
     # --------------------- end of main part --------------------- #
 
-    # # -------------------------- DATA IO -------------------------- #
-    # filename = filename + f"-neval={neval}-9-22-2023.csv"
-    # filepath = directory + "/" + filename
-    # HEADER = params_str + "\n" + f"Columns:n,emissivity (ergs/cm^3/s),error"
-    # data = np.array([[beta_F_mu, result.mean, result.sdev]])
+    # -------------------------- DATA IO -------------------------- #
+    if save and directory and filename:
+        from datetime import date
 
-    # save_file(filepath, header=HEADER, data=data)
+        today = date.today().strftime("%d-%m-%Y")
+        filename = filename + f"-neval={neval}-{today}.csv"
+        filepath = directory + "/" + filename
+        HEADER = params_str + "\n" + f"Columns:T,emissivity (ergs/cm^3/s),error"
+        data = np.array([[T, result.mean, result.sdev]])
+
+        save_file(filepath, header=HEADER, data=data)
+
+    return result
+
+
+def main():
+    process = DEFAULT_VALUES["process"]
+    beta_F_mu = DEFAULT_VALUES["beta_F_mu"]
+    m3 = 0.1
+    T0 = DEFAULT_VALUES["T"]  # MeV
+
+    if m3 > 0: FILE_DIRECTORY = "./results/massive-axion/ep-to-upa"
+    else: FILE_DIRECTORY = "./results/ep-to-upa"
+    FILE_NAME = "T-vs-emissivity"
+
+    Path(FILE_DIRECTORY).mkdir(exist_ok=True)
+
+    # for T in np.logspace(-3, 4, 50) * T0:
+    res = calc_emissivity(
+        process, beta_F_mu, T0, m3, FILE_DIRECTORY, FILE_NAME, save=False
+    )
 
 
 if __name__ == "__main__":
-    T0 = 0.0861733  # MeV
-    FILE_DIRECTORY = "./results/ep-to-upa-FSA"
-    Path(FILE_DIRECTORY).mkdir(exist_ok=True)
-    FILE_NAME = "beta_F_mu-vs-emissivity"
-    beta_F_mu = 0.836788
-    # for beta_F_mu in np.linspace(0.01, 0.05, 10):
-    main(beta_F_mu, FILE_DIRECTORY, FILE_NAME)
+    main()
