@@ -191,6 +191,11 @@ def find_root(g, g_prime, x0, C, a, b, c, d, tol=1e-13, maxiter=10):
 
 @jit(nopython=True)
 def solution_exists(C, a, b, c, d):
+    """Determine if a root of g(x) exists such that x > 0.
+    Since g(x) = C - f(x), the root only exists if the global
+    minimum of f is less than or equal to C. This works because
+    as x --> +/- infinity f(x) -> +infinity.
+    """
     return f(x_star(a, b, c, d), a, b, c, d) < C
 
 # ----------- END OF ENERGY CONSERVATION METHOD SECTION ------------ #
@@ -304,7 +309,7 @@ def integrand_massive_axion(
 
         # jac_factor arises from using energy Dirac delta to fix
         # p3mag to the value specified above.
-        jac_factor = abs(p3mag / E3 + (p3mag - Pz) / E2)
+        jac_factor = 1 / abs(g_prime(p3mag, C, Pmag, Pz, m2, m3))
 
         # ----- THE INTEGRAND ----- #
         _integrand = (

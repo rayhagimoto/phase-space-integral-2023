@@ -8,8 +8,8 @@ mn = 940.6
 
 # Conversion factor from MeV^5 to ergs / cm^3 / s
 CONVERSION_FACTOR = (3.156565344122207e-48) ** -1
+
 # Default parameters
-# These imply beta_F_mu is approximately 0.836788
 DEFAULT_VALUES = dict(
     T=0.0861733,  # MeV (=10^9 K)
     process="ep->upa",
