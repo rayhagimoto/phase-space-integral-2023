@@ -3,10 +3,6 @@ from numpy import cos, sin
 from numpy.linalg import norm as np_norm
 from functools import partial
 from numba import jit
-from scipy.optimize import newton
-
-
-import logging
 
 
 # ------------------------ OVERVIEW OF THE INTEGRAND ------------------------ #
