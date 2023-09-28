@@ -13,18 +13,24 @@ import logging
 
 """
 emissivity_3 = Integrate[
-       fa * fb * (1 - f1) * (1 - f2) * E3NS * |M.E|^2 *
-       Sqrt(EaNS^2 - ma^2) * Sqrt(EbNS^2 - mb^2)  * Sqrt(E1NS^2 - m1^2) *
-       (E3NS^2 - m3^2) * (4 * pi) / E2,
-       {EaNS nearby fermi surface},
-       {EbNS nearby fermi surface},
-       {E1NS nearby fermi surface},
-       {cosa, -1, 1}
-       {cosb, -1, 1}
-       {cos1, -1, 1}
-       {phia, 0, 2 * pi}
-       {phib, 0, 2 * pi}
-       {phi1, 0, 2 * pi}
+
+       fa * fb * (1 - f1) * (1 - f2) 
+       * E3NS 
+       * |M.E|^2 
+       * Sqrt(EaNS^2 - ma^2) 
+       * Sqrt(EbNS^2 - mb^2)  
+       * Sqrt(E1NS^2 - m1^2) 
+       * (E3NS^2 - m3^2) * (4 * pi) / E2,
+
+        {EaNS nearby fermi surface},
+        {EbNS nearby fermi surface},
+        {E1NS nearby fermi surface},
+        {cosa, -1, 1}
+        {cosb, -1, 1}
+        {cos1, -1, 1}
+        {phia, 0, 2 * pi}
+        {phib, 0, 2 * pi}
+        {phi1, 0, 2 * pi}
    ]
 
 The integrand has several factors:

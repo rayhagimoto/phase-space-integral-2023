@@ -70,12 +70,12 @@ def calc_emissivity(
     neval = 10**7
 
     params_str = (
-        # f"T = {T}\n"
+        f"T = {T}\n"
         f"ma = {ma}\n"
         f"mb = {mb}\n"
         f"m1 = {m1}\n"
         f"m2 = {m2}\n"
-        f"m2 = {m3}\n"
+        # f"m3 = {m3}\n"
         f"pFa = {pFa}\n"
         f"pFb = {pFb}\n"
         f"pF1 = {pF1}\n"
@@ -122,16 +122,17 @@ def calc_emissivity(
     # --------------------- end of main part --------------------- #
 
     # -------------------------- DATA IO -------------------------- #
-    if save and directory and filename:
+    if save:
         from datetime import date
 
         today = date.today().strftime("%d-%m-%Y")
         filename = filename + f"-neval={neval}-{today}.csv"
         filepath = directory + "/" + filename
-        HEADER = params_str + "\n" + f"Columns:T,emissivity (ergs/cm^3/s),error"
-        data = np.array([[T, result.mean, result.sdev]])
+        HEADER = params_str + "\n" + f"Columns:m3,emissivity (ergs/cm^3/s),error"
+        data = np.array([[m3, result.mean, result.sdev]])
 
         save_file(filepath, header=HEADER, data=data)
+        print(f"file updated at {filepath}")
 
     return result
 
@@ -139,19 +140,20 @@ def calc_emissivity(
 def main():
     process = DEFAULT_VALUES["process"]
     beta_F_mu = DEFAULT_VALUES["beta_F_mu"]
-    m3 = 0.1
     T0 = DEFAULT_VALUES["T"]  # MeV
 
-    if m3 > 0: FILE_DIRECTORY = "./results/massive-axion/ep-to-upa"
-    else: FILE_DIRECTORY = "./results/ep-to-upa"
-    FILE_NAME = "T-vs-emissivity"
 
-    Path(FILE_DIRECTORY).mkdir(exist_ok=True)
+    for m3 in [0.01, 0.1, 1.]:
+        if m3 > 0: FILE_DIRECTORY = f"./results/massive-axion/{'-to-'.join(process.split('->'))}"
+        else: FILE_DIRECTORY = f"./results/{'-to-'.join(process.split('->'))}"
+        FILE_NAME = "m3-vs-emissivity"
 
-    # for T in np.logspace(-3, 4, 50) * T0:
-    res = calc_emissivity(
-        process, beta_F_mu, T0, m3, FILE_DIRECTORY, FILE_NAME, save=False
-    )
+        Path(FILE_DIRECTORY).mkdir(exist_ok=True, parents=True)
+
+        # for T in np.logspace(-3, 4, 50) * T0:
+        res = calc_emissivity(
+            process, beta_F_mu, T0, m3, FILE_DIRECTORY, FILE_NAME, save=True
+        )
 
 
 if __name__ == "__main__":
