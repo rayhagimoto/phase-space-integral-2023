@@ -176,6 +176,11 @@ def check_energy_conservation(process, beta_F_mu, m3, T, tol=1e-8):
 
 
 def check_matrix_elements(beta_F_mu, m3, T):
+    """Calculates matrix element for each process.
+
+    I compared the output of this method with a Mathematica notebook to make
+    sure the results agreed.
+    """
     from integrand import _fetch_matrix_element_sq
 
     def to_four_vec(E, p):
