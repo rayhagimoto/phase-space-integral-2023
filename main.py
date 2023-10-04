@@ -126,10 +126,53 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
 
 
 def main():
+    beta_F_mu_vals = np.array(
+        [
+            1 / 100,
+            1 / 50,
+            3 / 100,
+            1 / 25,
+            1 / 20,
+            1 / 10,
+            3 / 20,
+            1 / 5,
+            1 / 4,
+            3 / 10,
+            33 / 100,
+            17 / 50,
+            7 / 20,
+            9 / 25,
+            37 / 100,
+            2 / 5,
+            9 / 20,
+            12 / 25,
+            51 / 100,
+            27 / 50,
+            57 / 100,
+            3 / 5,
+            31 / 50,
+            16 / 25,
+            33 / 50,
+            17 / 25,
+            7 / 10,
+            18 / 25,
+            37 / 50,
+            19 / 25,
+            39 / 50,
+            4 / 5,
+            41 / 50,
+            21 / 25,
+            43 / 50,
+            22 / 25,
+            9 / 10,
+        ],
+        dtype=float,
+    )
+
     m3 = 0
-    T = 0.1 * T0
+    T = T0
     n = 10
-    neval = 2*10**7
+    neval = 10**7
     dep = "beta_F_mu"
 
     for process in [
@@ -140,11 +183,6 @@ def main():
         "eu->uua",
         "uu->eua",
     ]:
-        if process.split("->")[0] in ["ep", "up", "ue", "ee"]:
-            beta_F_mu_vals = np.linspace(0.05, 0.95, 5)
-        else:
-            beta_F_mu_vals = np.linspace(0.30, 0.95, 5)
-
         for beta_F_mu in beta_F_mu_vals:
             print(f"\n--------\nStarting {process}\n--------")
 
