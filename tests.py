@@ -157,20 +157,72 @@ def check_energy_conservation(process, beta_F_mu, m3, T, tol=1e-8):
             C = Ea + Eb - E1
             p3mag = np_norm(p3vec)
 
-            if (abs(Ea + Eb - E1 - E2 - E3) == 0.0) and count_2 < 10:
-                if count_2 == 0:
-                    print("Exact energy conservation detected. This is suspicious...")
-                print(f"p3mag = {p3mag}")
-                print(f"C, a, b, c, d = {C}, {Pmag}, {Pz}, {m2}, {m3}")
-                count_2 += 1
+            # if (abs(Ea + Eb - E1 - E2 - E3) == 0.0) and count_2 < 10:
+            #     if count_2 == 0:
+            #         print("Exact energy conservation detected. This is suspicious...")
+            #     print(f"p3mag = {p3mag}")
+            #     print(f"C, a, b, c, d = {C}, {Pmag}, {Pz}, {m2}, {m3}")
+            #     count_2 += 1
 
             if abs(Ea + Eb - E1 - E2 - E3) > tol:
                 print(
                     f"TOLERANCE EXCEEDED! |Ea + Eb - E1 - E2 - E3| = {abs(Ea + Eb - E1 - E2 - E3)}"
                 )
-            if count < 10:
+                print(
+                    "ENERGY CONSERVATION HAS FAILED WITHIN ALLOWED TOLERANCE. ABORTING."
+                )
+                break
+            if count < 3:
                 print(f"|Ea + Eb - E1 - E2 - E3| = {abs(Ea + Eb - E1 - E2 - E3)}")
 
+            count += 1
+    return True
+
+
+def check_energy_conservation_approximate_p3mag(process, beta_F_mu, T):
+    ma, mb, m1, m2, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = init_params(
+        process, beta_F_mu
+    )
+
+    count = 0
+    while count < 10_000:
+        Ea, Eb, E1, cosa, cosb, cos1, phia, phib, phi1 = generate_random_vars(
+            ma, mb, m1, mu_a, mu_b, mu_1, T, SEED=np.random.randint(low=0, high=10**4)
+        )
+
+        # ------ MOMENTUM RECONSTRUCTION ------ #
+
+        # First calculate E3.
+        # If it's positive, then this point in phase space is
+        # kinematically allowed, so continue.
+        sina = (1 - cosa**2) ** 0.5
+        sinb = (1 - cosb**2) ** 0.5
+        sin1 = (1 - cos1**2) ** 0.5
+
+        pamag = (Ea**2 - ma**2) ** 0.5
+        pbmag = (Eb**2 - mb**2) ** 0.5
+        p1mag = (E1**2 - m1**2) ** 0.5
+
+        pavec = pamag * np.array([sina * cos(phia), sina * sin(phia), cosa])
+        pbvec = pbmag * np.array([sinb * cos(phib), sinb * sin(phib), cosb])
+        p1vec = p1mag * np.array([sin1 * cos(phi1), sin1 * sin(phi1), cos1])
+
+        Pvec = pavec + pbvec - p1vec
+        Pmag = np_norm(Pvec)
+        Epsilon = (Pmag**2 + m2**2) ** 0.5
+        Pz = Pvec[2]
+
+        # E3 = p3mag since axion is massless
+        p3mag = ((Ea + Eb - E1) - Epsilon) / (1 - Pz / Epsilon)
+        E3 = p3mag
+
+        if p3mag > 0:
+            p3vec = E3 * np.array([0, 0, 1])
+            p2vec = pavec + pbvec - p1vec - p3vec
+            E2 = (np_norm(p2vec) ** 2 + m2**2) ** 0.5
+
+            if count <= 3:
+                print(f"|Ea + Eb - E1 - E2 - E3| = {abs(Ea + Eb - E1 - E2 - E3) / T}")
             count += 1
     return True
 
@@ -264,15 +316,22 @@ def check_matrix_elements(beta_F_mu, m3, T):
 
 
 def main():
-    # check_energy_conservation(
-    #     "ep->upa", DEFAULT_VALUES["beta_F_mu"], 20.0, DEFAULT_VALUES["T"], tol=1e-8
+    for process in ["ep->upa", "eu->uua", "uu->eua"]:
+        for T in np.logspace(-3, 2, 5) * DEFAULT_VALUES["T"]:
+            _str = f"\nChecking {process} for T = {T}\n"
+            print(_str + len(_str) * "-")
+            check_energy_conservation(
+                process, DEFAULT_VALUES["beta_F_mu"], 20.0, T, tol=1e-6 * T
+            )
+            # check_energy_conservation_approximate_p3mag(
+            #     process, DEFAULT_VALUES["beta_F_mu"], T
+            # )
+    # check_matrix_elements(
+    #     DEFAULT_VALUES["beta_F_mu"],
+    #     0,
+    #     DEFAULT_VALUES["T"],
     # )
-    check_matrix_elements(
-        DEFAULT_VALUES["beta_F_mu"],
-        0,
-        DEFAULT_VALUES["T"],
-    )
-    pass
+    # pass
 
 
 if __name__ == "__main__":

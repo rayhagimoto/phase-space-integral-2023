@@ -33,11 +33,13 @@ def get_fermi_params(
 
     # ---- l p -> l' p a ----- #
     if process == "ep->upa":
-        pF1 = m1 * beta_F_mu / (1 - beta_F_mu**2) ** 0.5
-        mu_1 = np.sqrt(pF1**2 + m1**2)
-        mu_a = mu_1
-        pFa = np.sqrt(mu_a**2 - ma**2)
-        pFb = (pFa**3 + pF1**3) ** (1 / 3)
+        pF1 = m1 * beta_F_mu / (1 - beta_F_mu**2) ** 0.5  # muon
+        mu_1 = np.sqrt(pF1**2 + m1**2)  # muon chem. pot.
+        mu_a = mu_1  # muon chem. pot. = electron chem. pot.
+        pFa = np.sqrt(mu_a**2 - ma**2)  # electron Fermi momentum
+        pFb = (pFa**3 + pF1**3) ** (
+            1 / 3
+        )  # charge conservation --> proton Fermi momentum
         mu_b = np.sqrt(pFb**2 + mb**2)
         mu_2 = mu_b
     if process == "up->epa":
@@ -95,11 +97,12 @@ def get_masses(process):
     ----------
     process : str
         must be one of the following:
-        lp->l'pa
-        ll->l'la
-        ll'->l'l'a
-
-        where l is either e or u and l' is always 'the other one'. E.g. if l is e then l' is u.
+        ep->upa
+        up->epa
+        ee->uea
+        uu->eua
+        eu->uua
+        ue->eea
     """
     masses = {
         "e": me,
@@ -117,3 +120,107 @@ def get_masses(process):
     m2 = masses[_out[1]]
 
     return ma, mb, m1, m2
+
+
+class Parameters:
+    """Class that contains methods for getting .csv header, filename, directory.
+
+    List of all relevant variables:
+    - T
+    - beta_F_mu
+    - n
+    - m3
+    - neval
+    - process
+
+    The filename will be of the form
+      "{process}/emissivity-vs-{dep}-var1={var1}-var2={var2}-var3={var3}-var4={var4}.csv"
+    where var1, var2, var3, var4 are the variables in the list above which are
+    not the dependent variable, dep.
+
+    Floats will be formatted using f"{float_value:.3e}", and ints are formatted as f"{int_value}".
+
+
+    Parameters
+    ----------
+    dep : str
+        Name of the dependent parameter. Must be one of "T", "beta_F_mu", "n"
+        or "m3". The
+    params : dict
+        A dictionary containing the values of all the variables. params.keys()
+        must contain "T", "beta_F_mu", "n", and "m3". The values should be
+        either floats or ints.
+    """
+
+    def __init__(self, dep: str, params: dict):
+        variables = ["T", "beta_F_mu", "n", "m3", "neval", "process"]
+        assert dep in variables
+        for _ in variables:
+            assert _ in params.keys()
+
+        self.params = params
+        self.dep = dep
+        self.process = params["process"]
+        self.T = params["T"]
+        self.beta_F_mu = params["beta_F_mu"]
+        self.neval = params["neval"]
+        self.m3 = params["m3"]
+        self.n = params["n"]
+
+    @property
+    def filename(self):
+        fn = f"{'-to-'.join(self.process.split('->'))}/emissivity-vs-{self.dep}"
+
+        for x in ["T", "beta_F_mu", "n", "m3", "neval"]:
+            if x != self.dep:
+                if isinstance(self.params[x], int):
+                    fn += f"-{x}={self.params[x]}"
+                else:
+                    fn += f"-{x}={self.params[x]:.3e}"
+        fn += ".csv"
+
+        return fn
+
+    @property
+    def header(self):
+        res = self.params_str
+        if self.dep != "T":
+            res += f"\nColumns:{self.dep},emissivity (ergs/cm^3/s),error"
+        else:
+            res += f"\nColumns:T / 10^9 K,emissivity (ergs/cm^3/s),error"
+        return res
+
+    @property
+    def params_str(self):
+        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(
+            self.process, self.beta_F_mu
+        )
+
+        ma, mb, m1, m2 = get_masses(self.process)
+
+        params_str = (
+            f"ma = {ma}"
+            f"\nmb = {mb}"
+            f"\nm1 = {m1}"
+            f"\nm2 = {m2}"
+            f"\npFa = {pFa}"
+            f"\npFb = {pFb}"
+            f"\npF1 = {pF1}"
+            f"\npF2 = {np.sqrt(mu_2**2 - m2**2)}"
+            f"\nmu_a = {mu_a}"
+            f"\nmu_b = {mu_b}"
+            f"\nmu_1 = {mu_1}"
+            f"\nmu_2 = {mu_2}"
+        )
+
+        for key in [
+            "T",
+            "beta_F_mu",
+            "n",
+            "m3",
+            "neval",
+        ]:
+            if key != self.dep:
+                params_str += f"\n{key} = {self.params[key]}"
+
+        return params_str

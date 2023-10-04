@@ -78,6 +78,8 @@ from constants import get_fermi_params, get_masses
 
 # ----- INTEGRAND CLASS ----- #
 class Integrand:
+    """Callable object which evaluates the integrand at a given value of the (9) integration variables."""
+
     def __init__(self, process, beta_F_mu, m3, T, conversion_factor):
         ma, mb, m1, m2 = get_masses(process)
 
@@ -86,6 +88,7 @@ class Integrand:
         if process.split("->")[0] in ["ep", "up"]:
             self.symmetry_factor = 1
         else:
+            # symmetry factor for all other channels
             self.symmetry_factor = 2
 
         if m3 == 0:
@@ -571,7 +574,7 @@ def fFD(E, mu, T):
             Temperature
     """
     x = (E - mu) / T
-    if x < 100:
+    if x < 200:
         return 1 / (np.exp(x) + 1)
     return 0
 
@@ -622,7 +625,7 @@ def lp_matrix_element_sq_massless(
     pb2vec = pbvec - p2vec
     pb2_sq = lorentz_dot(Eb2, pb2vec, Eb2, pb2vec)
 
-    result = -((pa_dot_p1 + ma * m1) * pb_dot_p3 * p2_dot_p3) / ((pb2_sq) ** 2)
+    result = -((pa_dot_p1 + ma * m1) * pb_dot_p3 * p2_dot_p3) / pb2_sq ** 2
     return norm * result
 
 

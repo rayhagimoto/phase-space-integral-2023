@@ -8,12 +8,21 @@ import numpy as np
 import logging, sys
 import time
 from pathlib import Path
+import os
 
 
 from integrand import Integrand
-from constants import get_fermi_params, get_masses, CONVERSION_FACTOR, DEFAULT_VALUES
+from constants import (
+    get_fermi_params,
+    get_masses,
+    CONVERSION_FACTOR,
+    DEFAULT_VALUES,
+    Parameters,
+)
 
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
+
+T0 = DEFAULT_VALUES["T"]  # MeV
 
 
 def save_file(
@@ -40,10 +49,14 @@ def save_file(
             )
 
 
-def calc_emissivity(
-    process, beta_F_mu, T, m3, directory=None, filename=None, save=False
-):
-    n = 10
+def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
+    parameters = Parameters(dep, params)
+    process = params["process"]
+    beta_F_mu = params["beta_F_mu"]
+    m3 = params["m3"]
+    T = params["T"]
+    n = params["n"]
+    neval = params["neval"]
 
     ma, mb, m1, m2 = get_masses(process)
     pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(
@@ -67,30 +80,8 @@ def calc_emissivity(
         nproc=16,
     )
 
-    neval = 10**7
-
-    params_str = (
-        f"T = {T}\n"
-        f"ma = {ma}\n"
-        f"mb = {mb}\n"
-        f"m1 = {m1}\n"
-        f"m2 = {m2}\n"
-        f"m3 = {m3}\n"
-        f"pFa = {pFa}\n"
-        f"pFb = {pFb}\n"
-        f"pF1 = {pF1}\n"
-        f"pF2 = {np.sqrt(mu_2**2 - m2**2)}\n"
-        f"mu_a = {mu_a}\n"
-        f"mu_b = {mu_b}\n"
-        f"mu_1 = {mu_1}\n"
-        f"mu_2 = {mu_2}\n"
-        # f"beta_F_mu = {beta_F_mu}\n"
-        f"neval = {neval}\n"
-        f"n = {n}"
-    )
-
-    print(f"beta_F_mu = {beta_F_mu}")
-    print(f"Parameters\n----------\n{params_str}")
+    print(f"{dep} = {params[dep]}")
+    print(f"Parameters\n----------\n{parameters.params_str}")
 
     # ------------------- COMPUTE THE INTEGRAL ------------------- #
     t1 = time.perf_counter()
@@ -106,10 +97,10 @@ def calc_emissivity(
     )
 
     # step 1 -- adapt to f; discard results
-    integ(f, nitn=20, neval=neval, alpha=0.3)
+    integ(f, nitn=10, neval=neval, alpha=0.1)
 
     # step 2 -- integ has adapted to f; keep results
-    result = integ(f, nitn=20, neval=neval, alpha=False)
+    result = integ(f, nitn=10, neval=neval, alpha=False)
     print(result.summary())
     print(f"result = {result}    Q = {result.Q:.2f}")
 
@@ -119,60 +110,64 @@ def calc_emissivity(
 
     # -------------------------- DATA IO -------------------------- #
     if save:
-        from datetime import date
+        filepath = Path(directory) / parameters.filename
+        Path(filepath).parent.mkdir(exist_ok=True, parents=True)
 
-        today = date.today().strftime("%d-%m-%Y")
-        filename = filename + f"-neval={neval}-1.csv"
-        filepath = directory + "/" + filename
-        HEADER = params_str + "\n" + f"Columns:beta_F_mu,emissivity (ergs/cm^3/s),error"
-        data = np.array([[beta_F_mu, result.mean, result.sdev]])
+        HEADER = parameters.header
+        if dep != "T":
+            data = np.array([[params[dep], result.mean, result.sdev]])
+        else:
+            data = np.array([[T / T0, result.mean, result.sdev]])
 
         save_file(filepath, header=HEADER, data=data)
-        print(f"file updated at {filepath}")
+        print(f"file updated at {str(filepath)}")
 
     return result
 
 
 def main():
     m3 = 0
-    process = DEFAULT_VALUES["process"]
-    beta_F_mu = DEFAULT_VALUES["beta_F_mu"]
-    T0 = DEFAULT_VALUES["T"]  # MeV
-    process_lists = [
-        ["ue->eea"],
-        # ["ep->upa", "up->epa", "ee->uea", "ue->eea"],
-        ["uu->eua", "eu->uua"],
-    ]
+    T = 0.1 * T0
+    n = 10
+    neval = 2*10**7
+    dep = "beta_F_mu"
 
-    beta_F_mu_vals_list = [
-        np.hstack(
-            (
-                np.linspace(0.0, 0.1, 5),
-                np.linspace(0.1, 0.85, 6)[1:],
-                np.linspace(0.85, 0.95, 6)[1:],
-            )
-        ),
-        np.hstack((np.linspace(0.35, 0.4, 5), np.linspace(0.4, 0.95, 11)[1:])),
-    ]
+    for process in [
+        "ep->upa",
+        "up->epa",
+        "ee->uea",
+        "ue->eea",
+        "eu->uua",
+        "uu->eua",
+    ]:
+        if process.split("->")[0] in ["ep", "up", "ue", "ee"]:
+            beta_F_mu_vals = np.linspace(0.05, 0.95, 5)
+        else:
+            beta_F_mu_vals = np.linspace(0.30, 0.95, 5)
 
-    for process_list, beta_F_mu_vals in zip(process_lists, beta_F_mu_vals_list):
-        for process in process_list:
+        for beta_F_mu in beta_F_mu_vals:
             print(f"\n--------\nStarting {process}\n--------")
-            for beta_F_mu in beta_F_mu_vals:
-                if m3 > 0:
-                    FILE_DIRECTORY = (
-                        f"./results/massive-axion/{'-to-'.join(process.split('->'))}"
-                    )
-                else:
-                    FILE_DIRECTORY = f"./results/{'-to-'.join(process.split('->'))}"
-                FILE_NAME = "beta_F_mu-vs-emissivity"
 
-                Path(FILE_DIRECTORY).mkdir(exist_ok=True, parents=True)
+            params = {
+                "process": process,
+                "beta_F_mu": beta_F_mu,
+                "T": T,
+                "m3": m3,
+                "n": n,
+                "neval": neval,
+            }
 
-                # for T in np.logspace(-3, 4, 50) * T0:
-                res = calc_emissivity(
-                    process, beta_F_mu, T0, m3, FILE_DIRECTORY, FILE_NAME, save=True
-                )
+            if m3 > 0:
+                RESULTS_DIRECTORY = f"./results/massive-axion/"
+            else:
+                RESULTS_DIRECTORY = f"./results/"
+
+            res = calc_emissivity(
+                dep,
+                params,
+                directory=RESULTS_DIRECTORY,
+                save=True,
+            )
 
 
 if __name__ == "__main__":
