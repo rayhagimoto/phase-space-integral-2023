@@ -148,7 +148,7 @@ def main():
     m3 = 0
     T = T0
     n = 10
-    neval = 10**7
+    neval = 5 * 10**7
     dep = "T"
 
     for process in [
@@ -156,10 +156,10 @@ def main():
         "up->epa",
         "ee->uea",
         "ue->eea",
-        # "eu->uua",
-        # "uu->eua",
+        "eu->uua",
+        "uu->eua",
     ]:
-        for T in np.logspace(-2, 4, 7) * T0:
+        for T in np.logspace(0, 3, 7) * T0:
             print(f"\n--------\nStarting {process}\n--------")
 
             params = {
