@@ -1,6 +1,7 @@
 # Ray's stuff
 *.txt
 ipython_notebooks/*
+*.out
 
 
 
