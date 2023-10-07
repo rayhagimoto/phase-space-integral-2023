@@ -18,6 +18,7 @@ from constants import (
     CONVERSION_FACTOR,
     DEFAULT_VALUES,
     Parameters,
+    HY_beta_F_mu_vals,
 )
 
 logging.basicConfig(stream=sys.stderr, level=logging.ERROR)
@@ -30,6 +31,14 @@ def save_file(
     header,
     data,
 ):
+    def get_header(fn):
+        with open(fn, "r") as f:
+            res = "\n".join(
+                [x.split("# ")[1].strip() for x in f.readlines() if "#" in x]
+            )
+            print(res)
+        return res
+
     WRITE_HEADER = not Path(filepath).is_file()
 
     # Append result to file
@@ -47,6 +56,14 @@ def save_file(
                 data,
                 delimiter=",",
             )
+
+    if not WRITE_HEADER:
+        HEADER = get_header(filepath)
+
+        # sort results by first column
+        tmp = np.loadtxt(filepath, delimiter=",")
+        tmp = np.sort(tmp, axis=0)
+        np.savetxt(filepath, tmp, delimiter=",", header=HEADER)
 
 
 def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
@@ -126,69 +143,28 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
 
 
 def main():
-    beta_F_mu_vals = np.array(
-        [
-            1 / 100,
-            1 / 50,
-            3 / 100,
-            1 / 25,
-            1 / 20,
-            1 / 10,
-            3 / 20,
-            1 / 5,
-            1 / 4,
-            3 / 10,
-            33 / 100,
-            17 / 50,
-            7 / 20,
-            9 / 25,
-            37 / 100,
-            2 / 5,
-            9 / 20,
-            12 / 25,
-            51 / 100,
-            27 / 50,
-            57 / 100,
-            3 / 5,
-            31 / 50,
-            16 / 25,
-            33 / 50,
-            17 / 25,
-            7 / 10,
-            18 / 25,
-            37 / 50,
-            19 / 25,
-            39 / 50,
-            4 / 5,
-            41 / 50,
-            21 / 25,
-            43 / 50,
-            22 / 25,
-            9 / 10,
-        ],
-        dtype=float,
-    )
+    beta_F_mu_vals = HY_beta_F_mu_vals
 
     m3 = 0
     T = T0
     n = 10
     neval = 10**7
-    dep = "beta_F_mu"
+    dep = "T"
 
     for process in [
         "ep->upa",
         "up->epa",
         "ee->uea",
         "ue->eea",
-        "eu->uua",
-        "uu->eua",
+        # "eu->uua",
+        # "uu->eua",
     ]:
-        for beta_F_mu in beta_F_mu_vals:
+        for T in np.logspace(-2, 4, 7) * T0:
             print(f"\n--------\nStarting {process}\n--------")
 
             params = {
                 "process": process,
-                "beta_F_mu": beta_F_mu,
+                "beta_F_mu": DEFAULT_VALUES["beta_F_mu"],
                 "T": T,
                 "m3": m3,
                 "n": n,
