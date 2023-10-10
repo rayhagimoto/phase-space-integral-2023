@@ -2,6 +2,7 @@
 *.txt
 ipython_notebooks/*
 *.out
+*.swp
 
 
 

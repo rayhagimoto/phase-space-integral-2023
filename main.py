@@ -145,11 +145,13 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
 def main():
     beta_F_mu_vals = HY_beta_F_mu_vals
 
-    m3 = 0
-    T = T0
     n = 10
     neval = 5 * 10**7
-    dep = "T"
+    dep = "m3"
+    T = T0
+
+    m3_vals = [_ for _ in np.logspace(-2, 2, 5)]
+    m3_vals.append(0)
 
     for process in [
         "ep->upa",
@@ -159,7 +161,7 @@ def main():
         "eu->uua",
         "uu->eua",
     ]:
-        for T in np.logspace(0, 3, 7) * T0:
+        for m3 in m3_vals:
             print(f"\n--------\nStarting {process}\n--------")
 
             params = {
