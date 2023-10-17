@@ -9,6 +9,7 @@ import logging, sys
 import time
 from pathlib import Path
 import os
+from multiprocessing import cpu_count
 
 
 from integrand import Integrand
@@ -62,7 +63,7 @@ def save_file(
 
         # sort results by first column
         tmp = np.loadtxt(filepath, delimiter=",")
-        tmp = np.sort(tmp, axis=0)
+        tmp = tmp[tmp[:, 0].argsort()]
         np.savetxt(filepath, tmp, delimiter=",", header=HEADER)
 
 
@@ -76,7 +77,7 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
     neval = params["neval"]
 
     ma, mb, m1, m2 = get_masses(process)
-    pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(
+    pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp = get_fermi_params(
         process,
         beta_F_mu,
     )
@@ -94,7 +95,7 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
             [0, 2 * np.pi],
             [0, 2 * np.pi],
         ],
-        nproc=16,
+        nproc=cpu_count(),
     )
 
     print(f"{dep} = {params[dep]}")
@@ -114,7 +115,7 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
     )
 
     # step 1 -- adapt to f; discard results
-    integ(f, nitn=10, neval=neval, alpha=0.1)
+    integ(f, nitn=10, neval=neval, alpha=0.3)
 
     # step 2 -- integ has adapted to f; keep results
     result = integ(f, nitn=10, neval=neval, alpha=False)
@@ -127,7 +128,7 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
 
     # -------------------------- DATA IO -------------------------- #
     if save:
-        filepath = Path(directory) / parameters.filename
+        filepath = Path(directory) / (parameters.filename)
         Path(filepath).parent.mkdir(exist_ok=True, parents=True)
 
         HEADER = parameters.header
@@ -147,36 +148,63 @@ def main():
 
     n = 10
     neval = 5 * 10**7
-    dep = "m3"
-    T = T0
+    dep = "T"
+    m3 = 0
+    T = T0 * 46.41588833612777165
+    # T = np.logspace(0, 3, 10)[4] * T0  # about 4 MeV
+    # T = T0
+    beta_F_mu = DEFAULT_VALUES["beta_F_mu"]
 
-    m3_vals = [_ for _ in np.logspace(-2, 2, 5)]
-    m3_vals.append(0)
+    n_vals = [x for x in range(5, 25, 5)]
+    n_vals.append(1)
+    n_vals = sorted(n_vals)
 
+    m3_vals = list(np.linspace(0, 6, 7 + 6))
+    m3_vals = sorted(m3_vals)
+
+    T_vals = (
+        np.array(
+            [
+                1e-2,
+                1e-1,
+                1.0,
+                2.154434690031883814,
+                4.641588833612778409,
+                10.0,
+                21.54434690031883193,
+                46.41588833612777165,
+                100.0,
+                215.4434690031882269,
+                464.1588833612777307,
+                1000.0,
+                10000.0,
+            ]
+        )
+        * T0
+    )
+
+    neval_vals = [10**6, 2 * 10**6, 5 * 10**6, 10**7, 2 * 10**7, 5*10**7]
     for process in [
-        "ep->upa",
-        "up->epa",
-        "ee->uea",
+        # "ep->upa",
+        # "up->epa",
+        # "ee->uea",
         "ue->eea",
-        "eu->uua",
-        "uu->eua",
+        # "eu->uua",
+        # "uu->eua",
     ]:
-        for m3 in m3_vals:
+        for neval in neval_vals:
             print(f"\n--------\nStarting {process}\n--------")
 
             params = {
                 "process": process,
-                "beta_F_mu": DEFAULT_VALUES["beta_F_mu"],
+                "beta_F_mu": beta_F_mu,
                 "T": T,
                 "m3": m3,
                 "n": n,
                 "neval": neval,
             }
 
-            if m3 > 0:
-                RESULTS_DIRECTORY = f"./results/massive-axion/"
-            else:
-                RESULTS_DIRECTORY = f"./results/"
+            RESULTS_DIRECTORY = f"./results/"
 
             res = calc_emissivity(
                 dep,

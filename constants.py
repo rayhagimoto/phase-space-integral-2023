@@ -5,6 +5,7 @@ me = 0.511
 mp = 0.8 * 938.27208816
 mu = 106.0
 mn = 940.6
+alpha_EM = 1 / 137.
 
 # Conversion factor from MeV^5 to ergs / cm^3 / s
 CONVERSION_FACTOR = (3.156565344122207e-48) ** -1
@@ -31,6 +32,13 @@ def get_fermi_params(
     _check_process(process)
     ma, mb, m1, m2 = get_masses(process)
 
+    pFu = mu * beta_F_mu / (1 - beta_F_mu**2) ** 0.5
+    EFu = (pFu**2 + mu**2) ** 0.5
+    EFe = EFu
+    pFe = (EFe**2 - me**2) ** 0.5
+    pFp = (pFu**3 + pFe**3) ** (1/3)
+    EFp = (pFp**2 + mp**2) ** 0.5
+
     # ---- l p -> l' p a ----- #
     if process == "ep->upa":
         pF1 = m1 * beta_F_mu / (1 - beta_F_mu**2) ** 0.5  # muon
@@ -42,6 +50,7 @@ def get_fermi_params(
         )  # charge conservation --> proton Fermi momentum
         mu_b = np.sqrt(pFb**2 + mb**2)
         mu_2 = mu_b
+
     if process == "up->epa":
         pFa = ma * beta_F_mu / (1 - beta_F_mu**2) ** 0.5
         mu_a = (pFa**2 + ma**2) ** 0.5
@@ -87,7 +96,7 @@ def get_fermi_params(
         mu_b = mu_1
         mu_2 = mu_b
 
-    return pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2
+    return pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp
 
 
 # Processes
@@ -192,7 +201,7 @@ class Parameters:
 
     @property
     def params_str(self):
-        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(
+        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp = get_fermi_params(
             self.process, self.beta_F_mu
         )
 

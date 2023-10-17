@@ -73,7 +73,7 @@ from numpy.linalg import norm as np_norm
 from functools import partial
 from numba import jit
 
-from constants import get_fermi_params, get_masses
+from constants import get_fermi_params, get_masses, alpha_EM
 
 
 # ----- INTEGRAND CLASS ----- #
@@ -83,7 +83,10 @@ class Integrand:
     def __init__(self, process, beta_F_mu, m3, T, conversion_factor):
         ma, mb, m1, m2 = get_masses(process)
 
-        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(process, beta_F_mu)
+        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp = get_fermi_params(process, beta_F_mu)
+
+        # Thomas-Fermi wavenumber
+        kTF_sq = 4. * alpha_EM * (pFe * EFe + pFu * EFu + pFp * EFp) / np.pi
 
         if process.split("->")[0] in ["ep", "up"]:
             self.symmetry_factor = 1
@@ -103,6 +106,7 @@ class Integrand:
                 mu_1=mu_1,
                 mu_2=mu_2,
                 T=T,
+                kTF_sq=kTF_sq,
                 matrix_element_sq=_fetch_matrix_element_sq(process, m3),
             )
         else:
@@ -118,6 +122,7 @@ class Integrand:
                 mu_1=mu_1,
                 mu_2=mu_2,
                 T=T,
+                kTF_sq=kTF_sq,
                 matrix_element_sq=_fetch_matrix_element_sq(process, m3),
             )
 
@@ -292,7 +297,8 @@ def integrand_massless_axion(
     mu_b,
     mu_1,
     mu_2,
-    T,
+    T, 
+    kTF_sq,
     matrix_element_sq,
 ):
     """Integrand, including measure factors. Only valid for m3 = 0.
@@ -389,7 +395,7 @@ def integrand_massless_axion(
             / E2
             * thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T)
             * matrix_element_sq(
-                Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+                Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
             )
         )
         return _integrand
@@ -597,19 +603,23 @@ def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
 
 def _fetch_matrix_element_sq(process, m3):
     in_state = process.split("->")[0]
-    if m3 == 0:
-        if in_state in ["ep", "up"]:
-            return lp_matrix_element_sq_massless
-        if in_state in ["ee", "uu"]:
-            return ll_matrix_element_sq_massless
-        if in_state in ["eu", "ue"]:
-            return llp_matrix_element_sq_massless
+    # if m3 == 0:
+    # currently the matrix element for the massive and massless
+    # axion cases are treated as the same, but this is just an
+    # approximation. I will need to edit the code to incorporate
+    # the full matrix element properly.
+    if in_state in ["ep", "up"]:
+        return lp_matrix_element_sq_massless
+    if in_state in ["ee", "uu"]:
+        return ll_matrix_element_sq_massless
+    if in_state in ["eu", "ue"]:
+        return llp_matrix_element_sq_massless
     return
 
 
 @jit(nopython=True, error_model="numpy")
 def lp_matrix_element_sq_massless(
-    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
 ):
     """Calculate spin-summed matrix element squared for lp -> l'pa processes."""
 
@@ -625,26 +635,28 @@ def lp_matrix_element_sq_massless(
     pb2vec = pbvec - p2vec
     pb2_sq = lorentz_dot(Eb2, pb2vec, Eb2, pb2vec)
 
-    result = -((pa_dot_p1 + ma * m1) * pb_dot_p3 * p2_dot_p3) / pb2_sq ** 2
+    q_sq = (pb2_sq + kTF_sq)
+
+    result = -((pa_dot_p1 + ma * m1) * pb_dot_p3 * p2_dot_p3) / q_sq**2
     return norm * result
 
 
 @jit(nopython=True, error_model="numpy")
 def ll_matrix_element_sq_massless(
-    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
 ):
     """Calculate spin-summed matrix element squared for ll -> l'la processes."""
     # same as (lp)
     lp_me_sq = lp_matrix_element_sq_massless(
-        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
     )
     # (lp) but with a <-->  b
     permuted_me_sq = lp_matrix_element_sq_massless(
-        Eb, Ea, E1, E2, E3, pbvec, pavec, p1vec, p2vec, p3vec, mb, ma, m1, m2
+        Eb, Ea, E1, E2, E3, pbvec, pavec, p1vec, p2vec, p3vec, mb, ma, m1, m2, kTF_sq
     )
     # interaction term
     T_ll = ll_interaction_massless(
-        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
     )
 
     return lp_me_sq + permuted_me_sq + T_ll
@@ -652,20 +664,20 @@ def ll_matrix_element_sq_massless(
 
 @jit(nopython=True, error_model="numpy")
 def llp_matrix_element_sq_massless(
-    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
 ):
     """Calculate spin-summed matrix element squared for ll -> l'la processes."""
     # same as (lp)
     lp_me_sq = lp_matrix_element_sq_massless(
-        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
     )
     # (lp) but with 1 <-->  2
     permuted_me_sq = lp_matrix_element_sq_massless(
-        Ea, Eb, E2, E1, E3, pavec, pbvec, p2vec, p1vec, p3vec, ma, mb, m2, m1
+        Ea, Eb, E2, E1, E3, pavec, pbvec, p2vec, p1vec, p3vec, ma, mb, m2, m1, kTF_sq
     )
     # interaction term
     T_llp = llp_interaction_massless(
-        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+        Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
     )
 
     return lp_me_sq + permuted_me_sq + T_llp
@@ -673,7 +685,7 @@ def llp_matrix_element_sq_massless(
 
 @jit(nopython=True, error_model="numpy")
 def ll_interaction_massless(
-    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
 ):
     """T^(ll) interaction term for M.E. (See eq. 2.33 of HY notes.)"""
 
@@ -691,6 +703,17 @@ def ll_interaction_massless(
     p1_dot_p3 = lorentz_dot(E1, p1vec, E3, p3vec)
     p2_dot_p3 = lorentz_dot(E2, p2vec, E3, p3vec)
 
+    Eb2 = Eb - E2
+    pb2vec = pbvec - p2vec
+    pb2_sq = lorentz_dot(Eb2, pb2vec, Eb2, pb2vec)
+    
+    Ea2 = Ea - E2
+    pa2vec = pavec - p2vec
+    pa2_sq = lorentz_dot(Ea2, pa2vec, Ea2, pa2vec)
+
+    qa_sq = (pa2_sq + kTF_sq)
+    qb_sq = (pb2_sq + kTF_sq)
+
     return (
         norm
         * p2_dot_p3
@@ -699,21 +722,21 @@ def ll_interaction_massless(
             + (pa_dot_p1 + ma * m1) * pb_dot_p3
             - (pa_dot_pb + ma * mb) * p1_dot_p3
         )
-        / (ma**2 + m2**2 + 2 * pa_dot_p2)
-        / (mb**2 + m2**2 + 2 * pb_dot_p2)
+        / qa_sq
+        / qb_sq
     )
 
 
 @jit(nopython=True, error_model="numpy")
 def llp_interaction_massless(
-    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2
+    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
 ):
     """T^(ll') interaction term for M.E.
     See eq. 2.36 of HY notes. and surrounding discussion
     """
 
     return ll_interaction_massless(
-        E1, E2, Ea, Eb, E3, p1vec, p2vec, pavec, pbvec, p3vec, m1, m2, ma, mb
+        E1, E2, Ea, Eb, E3, p1vec, p2vec, pavec, pbvec, p3vec, m1, m2, ma, mb, kTF_sq
     )
 
 
