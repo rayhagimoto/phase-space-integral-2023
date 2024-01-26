@@ -132,9 +132,7 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
         will save a file to
             f"{directory}/ee-to-uea/emissivity-vs-beta_F_mu-T=4.309e+01-n=10-m3=0-neval=1000000.csv"
     """
-    if kwargs["Delta"] is not None:
-        params["Delta"] = kwargs["Delta"]
-        Delta = kwargs["Delta"]
+
     parameters = Parameters(dep, params)
     process = params["process"]
     beta_F_mu = params["beta_F_mu"]
@@ -203,23 +201,24 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
     # ------------------- COMPUTE THE INTEGRAL ------------------- #
     t1 = time.perf_counter()
 
-    if Delta is None:
+    if kwargs["Delta"] is None:
         f = Integrand(
             process,
             beta_F_mu,
             m3,
             T,
             CONVERSION_FACTOR,
-            trivial=True, # trivial denotes a trivial (constant) matrix element
+            trivial=False, # trivial denotes a trivial (constant) matrix element
         )
-    if Delta is not None:
+    if kwargs["Delta"] is not None:
+        params["Delta"] = kwargs["Delta"]
         f = Integrand(
             process,
             beta_F_mu,
             m3,
             T,
             CONVERSION_FACTOR,
-            Delta=Delta,
+            Delta=kwargs["Delta"],
         )
 
     # step 1 -- adapt to f; discard results
@@ -303,7 +302,7 @@ def main():
                 10000.0,
             ]
         )
-        * T0 # a fiducial temperature value given by 10^4 K
+        * T0 # a fiducial temperature value given by 10^9 K
     )
 
     # T = T0

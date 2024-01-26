@@ -5,6 +5,7 @@ ipython_notebooks/*
 *.swp
 *.pdf
 *.csv
+*.pkl
 
 
 

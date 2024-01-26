@@ -670,7 +670,7 @@ def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
 def trivial_matrix_element_sq(
     Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
 ):
-    return 1
+    return 1.0
 
 
 #                             Massless axion                            #
@@ -690,7 +690,6 @@ def _fetch_matrix_element_sq(process, m3):
         return ll_matrix_element_sq_massless
     if in_state in ["eu", "ue"]:
         return llp_matrix_element_sq_massless
-    return
 
 
 @jit(nopython=True, error_model="numpy")
@@ -844,9 +843,9 @@ where
 An energy-conserving value of p3mag exists when the minimum value of
     f(x) = sqrt(x^2 - 2 b x + a^2 + c^2) +  sqrt(x^2 + d^2)
 subject to the constraint x > 0 is less than C. I found analytically
-that the minimizing value of x > 0 (denoted x*) is given by
-    x* = b d / [ sqrt(a^2 - b^2 + c^2) + d ]      for b > 0
-    x* = 0                                        otherwise .
+that the minimizing value of x > 0 (denoted x_*) is given by
+    x_* = b d / [ sqrt(a^2 - b^2 + c^2) + d ]      for b > 0
+    x_* = 0                                        otherwise .
 """
 
 
