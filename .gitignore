@@ -3,6 +3,8 @@
 ipython_notebooks/*
 *.out
 *.swp
+*.pdf
+*.csv
 
 
 
