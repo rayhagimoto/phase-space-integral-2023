@@ -53,8 +53,6 @@ the Fermi momentum of the muon, the axion mass, and the temperature.
 An Integrand has a __call__ method which expects a 9-dimensional array
 as input. E.g.
 
-..code-block:: python
-
     process = "ep->upa"
 
 
