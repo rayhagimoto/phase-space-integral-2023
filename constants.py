@@ -186,7 +186,7 @@ class Parameters:
                     fn += f"-{x}={self.params[x]}"
                 else:
                     fn += f"-{x}={self.params[x]:.3e}"
-        fn += ".csv"
+        fn += "-kTF_sq.csv"
 
         return fn
 

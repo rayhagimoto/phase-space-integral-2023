@@ -77,7 +77,21 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
     neval = params["neval"]
 
     ma, mb, m1, m2 = get_masses(process)
-    pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp = get_fermi_params(
+    (
+        pFa,
+        pFb,
+        pF1,
+        mu_a,
+        mu_b,
+        mu_1,
+        mu_2,
+        pFe,
+        pFu,
+        pFp,
+        EFe,
+        EFu,
+        EFp,
+    ) = get_fermi_params(
         process,
         beta_F_mu,
     )
@@ -147,15 +161,15 @@ def main():
     beta_F_mu_vals = HY_beta_F_mu_vals
 
     n = 10
-    neval = 5 * 10**7
+    # neval = 5 * 10**5
     dep = "T"
     m3 = 0
-    T = T0 * 46.41588833612777165
+    # T = T0 * 46.41588833612777165
     # T = np.logspace(0, 3, 10)[4] * T0  # about 4 MeV
     # T = T0
     beta_F_mu = DEFAULT_VALUES["beta_F_mu"]
 
-    n_vals = [x for x in range(5, 25, 5)]
+    n_vals = [x for x in range(5, 35, 5)]
     n_vals.append(1)
     n_vals = sorted(n_vals)
 
@@ -166,52 +180,53 @@ def main():
         np.array(
             [
                 1e-2,
-                1e-1,
-                1.0,
-                2.154434690031883814,
-                4.641588833612778409,
-                10.0,
-                21.54434690031883193,
-                46.41588833612777165,
-                100.0,
-                215.4434690031882269,
-                464.1588833612777307,
-                1000.0,
+                # 1e-1,
+                # 1.0,
+                # 2.154434690031883814,
+                # 4.641588833612778409,
+                # 10.0,
+                # 21.54434690031883193,
+                # 46.41588833612777165,
+                # 100.0,
+                # 215.4434690031882269,
+                # 464.1588833612777307,
+                # 1000.0,
                 10000.0,
             ]
         )
         * T0
     )
 
-    neval_vals = [10**6, 2 * 10**6, 5 * 10**6, 10**7, 2 * 10**7, 5*10**7]
-    for process in [
-        # "ep->upa",
-        # "up->epa",
-        # "ee->uea",
-        "ue->eea",
-        # "eu->uua",
-        # "uu->eua",
-    ]:
-        for neval in neval_vals:
-            print(f"\n--------\nStarting {process}\n--------")
+    # neval_vals = [10**8, 2*10**8, 5 * 10**8]
+    for T in T_vals:
+        for process in [
+            "up->epa",
+            "ue->eea",
+            "uu->eua",
+            "ep->upa",
+            "ee->uea",
+            "eu->uua",
+        ]:
+            for neval in [5 * 10**7]:
+                print(f"\n--------\nStarting {process}\n--------")
 
-            params = {
-                "process": process,
-                "beta_F_mu": beta_F_mu,
-                "T": T,
-                "m3": m3,
-                "n": n,
-                "neval": neval,
-            }
+                params = {
+                    "process": process,
+                    "beta_F_mu": beta_F_mu,
+                    "T": T,
+                    "m3": m3,
+                    "n": n,
+                    "neval": neval,
+                }
 
-            RESULTS_DIRECTORY = f"./results/"
+                RESULTS_DIRECTORY = f"./results/"
 
-            res = calc_emissivity(
-                dep,
-                params,
-                directory=RESULTS_DIRECTORY,
-                save=True,
-            )
+                res = calc_emissivity(
+                    dep,
+                    params,
+                    directory=RESULTS_DIRECTORY,
+                    save=True,
+                )
 
 
 if __name__ == "__main__":
