@@ -101,26 +101,26 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
           This is used to determine the domain for energy integral. It needs
           to be sufficiently large that the integrator is not missing important
           peaks in the integrand, but shouldn't be too large that it spends a
-          lot of time sampling regions where the integrand is small. 
+          lot of time sampling regions where the integrand is small.
         - "neval" : int
           This is a hyperparameter for the vegas integrator which determines
           the maximum number of steps to take in each iteration of the vegas
           algorithm.
-          
+
           Optionally, params may contain "Delta" : float, which determines the
           energy gap between the chemical potentials of the incident particles
           in MeV. The user will probably not need to use this because I only
-          added this functionality later to check that the emissivity becomes 
-          small when the chemical potentials are mismatched. 
-    directory : str 
+          added this functionality later to check that the emissivity becomes
+          small when the chemical potentials are mismatched.
+    directory : str
         This controls where the results of the emissivity calculation are saved
         to disk if the `save` flag is set to True.
     save : bool
-        Whether or not to save the results of the calculation to disk. If True, 
-        this function will attempt to save a .csv file with a filename of the 
+        Whether or not to save the results of the calculation to disk. If True,
+        this function will attempt to save a .csv file with a filename of the
         following signature
             emissivity-vs-dep-param=val.csv
-        e.g. 
+        e.g.
             dep = "beta_F_mu"
             params = {
                 "process" : "ee->uea",
@@ -160,8 +160,8 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
         process,
         beta_F_mu,
     )
-    
-    # comment the next few lines out unless you want to mismatch the chemical 
+
+    # comment the next few lines out unless you want to mismatch the chemical
     # potentials using "Delta"
     # (
     #     pFa,
@@ -182,8 +182,8 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
     # initialise Monte Carlo integrator object
     integ = vegas.Integrator(
         [
-            [max(ma, mu_a - n * T), mu_a + n * T], # integration limits
-            [max(mb, mu_b - n * T), mu_b + n * T], # order is important
+            [max(ma, mu_a - n * T), mu_a + n * T],  # integration limits
+            [max(mb, mu_b - n * T), mu_b + n * T],  # order is important
             [max(m1, mu_1 - n * T), mu_1 + n * T],
             [-1, 1],
             [-1, 1],
@@ -208,7 +208,7 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
             m3,
             T,
             CONVERSION_FACTOR,
-            trivial=False, # trivial denotes a trivial (constant) matrix element
+            trivial=False,  # trivial denotes a trivial (constant) matrix element
         )
     if kwargs["Delta"] is not None:
         params["Delta"] = kwargs["Delta"]
@@ -236,11 +236,6 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
     # -------------------------- DATA IO -------------------------- #
     if save:
         filepath = Path(directory) / (parameters.filename)
-        filepath = (
-            Path(directory)
-            / "-to-".join(process.split("->"))
-            / "emissivity-vs-delta-1.csv"
-        )
         Path(filepath).parent.mkdir(exist_ok=True, parents=True)
 
         HEADER = parameters.header
@@ -250,18 +245,18 @@ def calc_emissivity(dep, params, directory=None, save=False, **kwargs):
             data = np.array([[T / T0, result.mean, result.sdev]])
 
         save_file(filepath, header=HEADER, data=data)
-        print(f"file updated at {str(filepath)}")
+        print(f"\nfile updated at {str(filepath)}")
 
     return result
 
 
 def main():
     """
-    The main routine called by this file. 
+    The main routine called by this file.
     This is where all the parameters are initialised.
     Whenever I use this script I manually change the parameters.
     """
-    beta_F_mu_vals = HY_beta_F_mu_vals
+
     beta_F_mu = DEFAULT_VALUES["beta_F_mu"]
 
     n = 50
@@ -302,16 +297,16 @@ def main():
                 10000.0,
             ]
         )
-        * T0 # a fiducial temperature value given by 10^9 K
+        * T0  # a fiducial temperature value given by 10^9 K
     )
 
     # T = T0
 
     # A list of neval values to iterate over when dep = "neval" .
-    # this is useful if you want to check for convergence by 
+    # this is useful if you want to check for convergence by
     # calculating the integral for increasing sizes of neval.
-    neval_vals = [5 * 10**5]
-    
+    neval_vals = [5 * 10**4]
+
     # A list of processes to calculate the integral for, this is
     # never a dependent variable. You will get a separate output
     # file for each process.
@@ -344,7 +339,7 @@ def main():
                     dep,
                     params,
                     directory=RESULTS_DIRECTORY,
-                    save=False,
+                    save=True,
                     Delta=None,
                 )
 
