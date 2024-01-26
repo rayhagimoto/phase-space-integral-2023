@@ -53,14 +53,12 @@ the Fermi momentum of the muon, the axion mass, and the temperature.
 An Integrand has a __call__ method which expects a 9-dimensional array
 as input. E.g.
 
-..code-block:: python
-
     process = "ep->upa"
 
 
     f = Integrand(process, beta_F_mu, m3, T). 
     x = [x0, x1, x2, x3, x4, x5, x6, x7, x8]
-    f(x) --> some number
+    # f(x) --> some number
 
 When f is initialised, it uses the process, beta_F_mu, m3, and T to
 uniquely determine all relevant parameters such as the masses 
