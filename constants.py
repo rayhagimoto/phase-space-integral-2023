@@ -1,11 +1,13 @@
 import numpy as np
 
 # Masses in MeV
-me = 0.511
-mp = 0.8 * 938.27208816
-mu = 106.0
-mn = 940.6
-alpha_EM = 1 / 137.
+me = 0.511 # MeV
+mp = 0.8 * 938.27208816 # MeV
+mu = 106.0 # MeV 
+mn = 940.6 # MeV
+
+# Fine structure constant
+alpha_EM = 1 / 137.0
 
 # Conversion factor from MeV^5 to ergs / cm^3 / s
 CONVERSION_FACTOR = (3.156565344122207e-48) ** -1
@@ -22,6 +24,8 @@ DEFAULT_VALUES = dict(
 def _check_process(process):
     assert len(process) == len("ep->upa")
     _in, _out = process.split("->")
+    assert len(_in) == 2
+    assert len(_out) == 3
 
 
 def get_fermi_params(
@@ -36,7 +40,7 @@ def get_fermi_params(
     EFu = (pFu**2 + mu**2) ** 0.5
     EFe = EFu
     pFe = (EFe**2 - me**2) ** 0.5
-    pFp = (pFu**3 + pFe**3) ** (1/3)
+    pFp = (pFu**3 + pFe**3) ** (1 / 3)
     EFp = (pFp**2 + mp**2) ** 0.5
 
     # ---- l p -> l' p a ----- #
@@ -99,6 +103,44 @@ def get_fermi_params(
     return pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp
 
 
+def get_fermi_params_delta(process, beta_F_mu, Delta, T):
+    """
+    This function should be commented out most of the time. Its only purpose
+    is to make sure that EFe and EFu are different.
+    """
+    _check_process(process)
+
+    assert process in ["ep->upa", "up->epa"]
+    ma, mb, m1, m2 = get_masses(process)
+
+    pFu = mu * beta_F_mu / (1 - beta_F_mu**2) ** 0.5
+    EFu = (pFu**2 + mu**2) ** 0.5
+    EFe = EFu + Delta * T
+    pFe = (EFe**2 - me**2) ** 0.5
+    pFp = (pFu**3 + pFe**3) ** (1 / 3)
+    EFp = (pFp**2 + mp**2) ** 0.5
+
+    # ---- l p -> l' p a ----- #
+    if process == "ep->upa":
+        pF1 = pFu
+        mu_1 = EFu
+        mu_a = EFe
+        pFa = EFe  # electron Fermi momentum
+        pFb = pFp
+        mu_b = EFp
+        mu_2 = EFp
+    if process == "up->epa":
+        pFa = pFu
+        mu_a = EFu
+        mu_1 = EFe
+        pF1 = pFe
+        pFb = pFp
+        mu_b = EFp
+        mu_2 = EFp
+
+    return pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp
+
+
 # Processes
 def get_masses(process):
     """
@@ -154,7 +196,7 @@ class Parameters:
     ----------
     dep : str
         Name of the dependent parameter. Must be one of "T", "beta_F_mu", "n"
-        or "m3". The
+        or "m3".
     params : dict
         A dictionary containing the values of all the variables. params.keys()
         must contain "T", "beta_F_mu", "n", and "m3". The values should be
@@ -163,6 +205,10 @@ class Parameters:
 
     def __init__(self, dep: str, params: dict):
         variables = ["T", "beta_F_mu", "n", "m3", "neval", "process"]
+        self.Delta = None
+        if "Delta" in params.keys():
+            variables.append("Delta")
+            self.Delta = params["Delta"]
         assert dep in variables
         for _ in variables:
             assert _ in params.keys()
@@ -186,7 +232,9 @@ class Parameters:
                     fn += f"-{x}={self.params[x]}"
                 else:
                     fn += f"-{x}={self.params[x]:.3e}"
-        fn += "-kTF_sq.csv"
+
+        # suffix that helps describe different variations of the integrand. 
+        fn += "-kTF_sq.csv" # denotes integral was run with a version of the code that accounts for plasma effects.
 
         return fn
 
@@ -201,9 +249,38 @@ class Parameters:
 
     @property
     def params_str(self):
-        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp = get_fermi_params(
-            self.process, self.beta_F_mu
-        )
+        (
+            pFa,
+            pFb,
+            pF1,
+            mu_a,
+            mu_b,
+            mu_1,
+            mu_2,
+            pFe,
+            pFu,
+            pFp,
+            EFe,
+            EFu,
+            EFp,
+        ) = get_fermi_params(self.process, self.beta_F_mu)
+
+        if self.Delta is not None:
+            (
+                pFa,
+                pFb,
+                pF1,
+                mu_a,
+                mu_b,
+                mu_1,
+                mu_2,
+                pFe,
+                pFu,
+                pFp,
+                EFe,
+                EFu,
+                EFp,
+            ) = get_fermi_params_delta(self.process, self.beta_F_mu, self.Delta, self.T)
 
         ma, mb, m1, m2 = get_masses(self.process)
 

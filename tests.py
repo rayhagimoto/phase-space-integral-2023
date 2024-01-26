@@ -30,11 +30,43 @@ def generate_random_vars(ma, mb, m1, mu_a, mu_b, mu_1, T, SEED=30087):
 
 def init_params(process, beta_F_mu):
     ma, mb, m1, m2 = get_masses(process)
-    pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2 = get_fermi_params(
+    (
+        pFa,
+        pFb,
+        pF1,
+        mu_a,
+        mu_b,
+        mu_1,
+        mu_2,
+        pFe,
+        pFu,
+        pFp,
+        EFe,
+        EFu,
+        EFp,
+    ) = get_fermi_params(
         process,
         beta_F_mu,
     )
-    return ma, mb, m1, m2, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2
+    return (
+        ma,
+        mb,
+        m1,
+        m2,
+        pFa,
+        pFb,
+        pF1,
+        mu_a,
+        mu_b,
+        mu_1,
+        mu_2,
+        pFe,
+        pFu,
+        pFp,
+        EFe,
+        EFu,
+        EFp,
+    )
 
 
 def init_integrator(ma, mb, m1, m2, m3, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, T, n):
@@ -227,6 +259,99 @@ def check_energy_conservation_approximate_p3mag(process, beta_F_mu, T):
     return True
 
 
+def check_photon_propagator(process, beta_F_mu):
+    """Verify that q^2 << kTF^2 in low temperature limit."""
+    from integrand import lorentz_dot
+    import os
+    from tqdm import tqdm
+    import matplotlib.pyplot as plt
+
+    m3 = 0
+    T = DEFAULT_VALUES["T"]
+
+    (
+        ma,
+        mb,
+        m1,
+        m2,
+        pFa,
+        pFb,
+        pF1,
+        mu_a,
+        mu_b,
+        mu_1,
+        mu_2,
+        pFe,
+        pFu,
+        pFp,
+        EFe,
+        EFu,
+        EFp,
+    ) = init_params(process, beta_F_mu)
+
+    kTF_sq = 4.0 / 137 * (pFe * EFe + pFu * EFu + pFp * EFp) / np.pi
+
+    integ = init_integrator(
+        ma, mb, m1, m2, m3, pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, T, 10
+    )
+
+    f = Integrand(process, beta_F_mu, m3, T, CONVERSION_FACTOR)
+    # fn = "./results/integrator_objects/T=10e9K-neval=10e5.pkl"
+
+    neval = 10**7
+    result = integ(
+        f,
+        neval=neval,
+        nitn=10,
+        alpha=0.3,
+    )
+
+    ls = np.zeros(neval)
+    ls_1 = np.zeros(neval)
+    count = 0
+    for x, wgt in tqdm(integ.random()):
+        count += 1
+        (
+            Ea,
+            Eb,
+            E1,
+            cosa,
+            cosb,
+            cos1,
+            phia,
+            phib,
+            phi1,
+        ) = x
+
+        momenta = reconstruct_momenta(
+            Ea, Eb, E1, cosa, cosb, cos1, phia, phib, phi1, ma, mb, m1, m2, m3
+        )
+
+        if momenta[0] is not None:
+            pavec, pbvec, p1vec, p2vec, p3vec = momenta
+            Eb = (np_norm(pbvec) ** 2 + mb) ** 0.5
+            E2 = (np_norm(p2vec) ** 2 + m2) ** 0.5
+            Eb2 = Eb - E2
+            pb2vec = pbvec - p2vec
+            pb2_sq = lorentz_dot(Eb2, pb2vec, Eb2, pb2vec)
+            ls[count - 1] = np.log10(pb2_sq / kTF_sq)
+            ls_1[count - 1] = np.log10(f(x))
+
+    ls = ls[:count]
+    ls_1 = ls_1[:count]
+
+    mask = np.logical_and(np.isfinite(ls), np.isfinite(ls_1))
+    mask = np.logical_and(mask, ls_1 > 0.0)
+
+    plt.hist2d(ls[mask], ls_1[mask], 100)
+    plt.show()
+
+    plt.hist(ls[mask], 100)
+    plt.show()
+    plt.hist(ls_1[mask], 100)
+    plt.show()
+
+
 def check_matrix_elements(beta_F_mu, m3, T):
     """Calculates matrix element for each process.
 
@@ -316,22 +441,7 @@ def check_matrix_elements(beta_F_mu, m3, T):
 
 
 def main():
-    for process in ["ep->upa", "eu->uua", "uu->eua"]:
-        for T in np.logspace(-3, 2, 5) * DEFAULT_VALUES["T"]:
-            _str = f"\nChecking {process} for T = {T}\n"
-            print(_str + len(_str) * "-")
-            check_energy_conservation(
-                process, DEFAULT_VALUES["beta_F_mu"], 20.0, T, tol=1e-6 * T
-            )
-            # check_energy_conservation_approximate_p3mag(
-            #     process, DEFAULT_VALUES["beta_F_mu"], T
-            # )
-    # check_matrix_elements(
-    #     DEFAULT_VALUES["beta_F_mu"],
-    #     0,
-    #     DEFAULT_VALUES["T"],
-    # )
-    # pass
+    check_photon_propagator("ep->upa", 0.84)
 
 
 if __name__ == "__main__":

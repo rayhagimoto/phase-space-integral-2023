@@ -1,6 +1,6 @@
 """Methods for computing the emissivity integrand.
 
-Throughout, we use a (- + + +) metric signature. 
+Throughout this file we use a (- + + +) metric signature. 
 
 
 First, we describe the integrand.
@@ -24,12 +24,12 @@ for computing the integrand. Note that all observables are measured in
 the rest frame of the neutron star.
 
             Ɛ = (4 π) / S *
-                ∫  fa * fb * (1 - f1) * (1 - f2) 
-                    * E3
-                    * |M.E|^2 
-                    * Sqrt(Ea^2 - ma^2) 
-                    * Sqrt(Eb^2 - mb^2)  
-                    * Sqrt(E1^2 - m1^2) 
+                ∫  fa * fb * (1 - f1) * (1 - f2)    // (1) Thermal factors
+                    * E3                            // (2) Axion energy
+                    * |M.E|^2                       // (3) Matrix element
+                    * Sqrt(Ea^2 - ma^2)             // (4) Measure factors
+                    * Sqrt(Eb^2 - mb^2)             // (4)
+                    * Sqrt(E1^2 - m1^2)             // (4)
                     * Sqrt(E3^2 - m3^2) * (4 * pi) / E2  
                     
                     dEa dEb dE1 dcosa dcosb dcos1 dphia dphib dphi1
@@ -48,11 +48,16 @@ over dΩ₃ becomes trivial.
 2. DESCRIPTION OF INTEGRAND MODULE
 
 The main class is the Integrand class. Initialising an instance of the
-Integrand class requires the user to input the process (e.g. ep->upa),
+Integrand class requires the user to input the process (e.g. "ep->upa"),
 the Fermi momentum of the muon, the axion mass, and the temperature. 
 An Integrand has a __call__ method which expects a 9-dimensional array
 as input. E.g.
-    
+
+..code-block:: python
+
+    process = "ep->upa"
+
+
     f = Integrand(process, beta_F_mu, m3, T). 
     x = [x0, x1, x2, x3, x4, x5, x6, x7, x8]
     f(x) --> some number
@@ -73,20 +78,55 @@ from numpy.linalg import norm as np_norm
 from functools import partial
 from numba import jit
 
-from constants import get_fermi_params, get_masses, alpha_EM
+from constants import get_fermi_params, get_fermi_params_delta, get_masses, alpha_EM
 
 
 # ----- INTEGRAND CLASS ----- #
 class Integrand:
     """Callable object which evaluates the integrand at a given value of the (9) integration variables."""
 
-    def __init__(self, process, beta_F_mu, m3, T, conversion_factor):
+    def __init__(
+        self, process, beta_F_mu, m3, T, conversion_factor, Delta=None, trivial=False
+    ):
         ma, mb, m1, m2 = get_masses(process)
 
-        pFa, pFb, pF1, mu_a, mu_b, mu_1, mu_2, pFe, pFu, pFp, EFe, EFu, EFp = get_fermi_params(process, beta_F_mu)
+        if Delta is None:
+            (
+                pFa,
+                pFb,
+                pF1,
+                mu_a,
+                mu_b,
+                mu_1,
+                mu_2,
+                pFe,
+                pFu,
+                pFp,
+                EFe,
+                EFu,
+                EFp,
+            ) = get_fermi_params(process, beta_F_mu)
 
+        if Delta is not None:
+            (
+                pFa,
+                pFb,
+                pF1,
+                mu_a,
+                mu_b,
+                mu_1,
+                mu_2,
+                pFe,
+                pFu,
+                pFp,
+                EFe,
+                EFu,
+                EFp,
+            ) = get_fermi_params_delta(process, beta_F_mu, Delta, T)
         # Thomas-Fermi wavenumber
-        kTF_sq = 4. * alpha_EM * (pFe * EFe + pFu * EFu + pFp * EFp) / np.pi
+        # kTF_sq = 4.0 * alpha_EM * (pFe * EFe + pFu * EFu + pFp * EFp) / np.pi
+        # print(f"kTF_sq = {kTF_sq}")
+        kTF_sq = 0.0
 
         if process.split("->")[0] in ["ep", "up"]:
             self.symmetry_factor = 1
@@ -94,7 +134,22 @@ class Integrand:
             # symmetry factor for all other channels
             self.symmetry_factor = 2
 
-        if m3 == 0:
+        if trivial:
+            self.integrand = partial(
+                integrand_massless_axion,
+                ma=ma,
+                mb=mb,
+                m1=m1,
+                m2=m2,
+                mu_a=mu_a,
+                mu_b=mu_b,
+                mu_1=mu_1,
+                mu_2=mu_2,
+                T=T,
+                kTF_sq=kTF_sq,
+                matrix_element_sq=trivial_matrix_element_sq,
+            )
+        elif m3 == 0:
             self.integrand = partial(
                 integrand_massless_axion,
                 ma=ma,
@@ -196,15 +251,15 @@ def integrand_massive_axion(
         phi1 : float
             Azimuthal angle of ptle '1' measured relative to ptle '3' axis.
         ma : float
-            Mass of ptle 'a'.
+            Mass of ptle 'a' in MeV.
         mb : float
-            Mass of ptle 'b'.
+            Mass of ptle 'b' in MeV.
         m1 : float
-            Mass of ptle '1'.
+            Mass of ptle '1' in MeV.
         m2 : float
-            Mass of ptle '2'.
+            Mass of ptle '2' in MeV.
         m3 : float
-            Mass of ptle '3'.
+            Mass of ptle '3' in MeV.
         mu_a : float
             Chemical potential of ptle 'a'. Approximated by its Fermi Energy.
         mu_b : float
@@ -297,7 +352,7 @@ def integrand_massless_axion(
     mu_b,
     mu_1,
     mu_2,
-    T, 
+    T,
     kTF_sq,
     matrix_element_sq,
 ):
@@ -395,7 +450,21 @@ def integrand_massless_axion(
             / E2
             * thermal_factors(Ea, Eb, E1, E2, mu_a, mu_b, mu_1, mu_2, T)
             * matrix_element_sq(
-                Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
+                Ea,
+                Eb,
+                E1,
+                E2,
+                E3,
+                pavec,
+                pbvec,
+                p1vec,
+                p2vec,
+                p3vec,
+                ma,
+                mb,
+                m1,
+                m2,
+                kTF_sq,
             )
         )
         return _integrand
@@ -597,6 +666,13 @@ def lorentz_dot(E_i, p_ivec, E_j, p_jvec):
 #                      DEFINITION OF MATRIX ELEMENTS                    #
 # --------------------------------------------------------------------- #
 
+
+def trivial_matrix_element_sq(
+    Ea, Eb, E1, E2, E3, pavec, pbvec, p1vec, p2vec, p3vec, ma, mb, m1, m2, kTF_sq
+):
+    return 1
+
+
 #                             Massless axion                            #
 #                             --------------                            #
 
@@ -635,7 +711,7 @@ def lp_matrix_element_sq_massless(
     pb2vec = pbvec - p2vec
     pb2_sq = lorentz_dot(Eb2, pb2vec, Eb2, pb2vec)
 
-    q_sq = (pb2_sq + kTF_sq)
+    q_sq = pb2_sq + kTF_sq
 
     result = -((pa_dot_p1 + ma * m1) * pb_dot_p3 * p2_dot_p3) / q_sq**2
     return norm * result
@@ -706,13 +782,13 @@ def ll_interaction_massless(
     Eb2 = Eb - E2
     pb2vec = pbvec - p2vec
     pb2_sq = lorentz_dot(Eb2, pb2vec, Eb2, pb2vec)
-    
+
     Ea2 = Ea - E2
     pa2vec = pavec - p2vec
     pa2_sq = lorentz_dot(Ea2, pa2vec, Ea2, pa2vec)
 
-    qa_sq = (pa2_sq + kTF_sq)
-    qb_sq = (pb2_sq + kTF_sq)
+    qa_sq = pa2_sq + kTF_sq
+    qb_sq = pb2_sq + kTF_sq
 
     return (
         norm
