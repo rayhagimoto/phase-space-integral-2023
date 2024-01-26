@@ -1,6 +1,9 @@
 """MAIN ROUTINE
 Uses vegas Monte Carlo integrator to estimate axion emissivity integral from
 neutron star (NS).
+
+The most important thing to check when running this script is the main()
+method defined in this file. That is where all the parameters are set.
 """
 
 import vegas
